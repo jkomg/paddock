@@ -1,0 +1,12 @@
+__pycache__/
+*.bak-*
+*.crew-bak
+*.backup-*
+.handoffs/
+.DS_Store
+# This machine's accounts and settings (copy the .example files)
+llm-profiles/profiles.tsv
+llm-profiles/folders.tsv
+llm-profiles/crews.tsv
+crew/local.env
+crew/local/

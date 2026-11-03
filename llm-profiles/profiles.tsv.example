@@ -1,0 +1,8 @@
+# LLM login profiles: one row per account. Paths may start with ~.
+# login-match: comma-separated email suffixes (or full addresses) that identify this profile's logins.
+# claude-config-dir "default" = CLAUDE_CONFIG_DIR unset (login in ~/.claude.json). At most one profile should use it.
+# aliases: optional extra names for `claude <alias>` / `codex <alias>`.
+# profile	login-match	claude-config-dir	codex-home	aliases (optional)
+acme	@acme.example	default	~/.codex
+globex	@globex.example	~/.claude-globex	~/.codex-globex	gx
+personal	you@example.com	~/.claude-personal	~/.codex-personal

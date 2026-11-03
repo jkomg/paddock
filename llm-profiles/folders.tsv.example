@@ -1,0 +1,10 @@
+# Which logins may work in which folder. The longest matching folder wins.
+# Folders not listed are unrestricted. Symlinks are resolved first.
+# folder	allowed-profiles	default-profile
+~/Projects/acme	acme	acme
+~/Projects/globex	globex	globex
+~/Projects/personal	personal	personal
+# Work that serves two employers:
+~/Projects/joint	acme,globex	acme
+# This toolkit, if you keep it under a restricted folder: every coordinator needs to read it.
+~/Projects/joint/paddock	acme,globex,personal	acme
