@@ -36,4 +36,7 @@ if crew_has litellm; then
   else echo "CREW_REVIEW_CMD not set (crew/local.env)"; fi
 fi
 
+# T3 Code, if installed: one line (details: llm_profile.py t3-check). Informational only.
+python3 -I "$CREW_PROFILES/llm_profile.py" t3-check --summary 2>/dev/null || true
+
 echo; echo "Expected: every login above belongs to the $CREW_ACCOUNT account (qwen is local). Anything else -> do not dispatch."

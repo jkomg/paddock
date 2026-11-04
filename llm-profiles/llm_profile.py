@@ -8,7 +8,8 @@ Rules live next to this file: profiles.tsv (logins) and folders.tsv (folder -> a
   llm_profile.py check <dir>                               report every login against the folder's rule
   llm_profile.py crew-env <dir>                            shell vars for this folder's crew (crews.tsv)
   llm_profile.py hook                                      Claude Code SessionStart / PreToolUse hook (JSON on stdin)
-  llm_profile.py names | claude-dirs                       helpers for llm-profile.zsh and install.sh
+  llm_profile.py t3-check [--summary]                      report T3 Code's Claude/Codex instances (read-only)
+  llm_profile.py names | claude-dirs | t3-claude-dirs      helpers for llm-profile.zsh and install.sh
 
 The hook is a guard against mistakes, not a sandbox: it checks file-tool paths, the session
 folder, and paths it can see in Bash commands. It never prints tokens or secrets.
@@ -19,7 +20,7 @@ import os
 import re
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.environ.get("LLM_PROFILES_DIR") or os.path.dirname(os.path.abspath(__file__))
 HOME = os.path.expanduser("~")
 PROJECTS = os.path.join(HOME, "Projects")
 
@@ -33,16 +34,30 @@ def _rows(name):
 
 
 def profiles():
+    """name -> profile. claude-config-dir may list several dirs, comma-separated: the first is
+    the one the shell wrapper uses; the others (e.g. a dir an app such as T3 Code points at)
+    count as the same login for checks, hooks and the T3 report."""
     out = {}
     for row in _rows("profiles.tsv"):
-        name, match, claude_dir, codex_home = row[:4]
+        name, match, claude_col, codex_home = row[:4]
+        dirs = [d if d == "default" else os.path.expanduser(d) for d in claude_col.split(",") if d.strip()]
         out[name] = {
             "match": [m for m in match.split(",") if m],
-            "claude": claude_dir if claude_dir == "default" else os.path.expanduser(claude_dir),
+            "claude": dirs[0],
+            "claude_dirs": dirs,
             "codex": os.path.expanduser(codex_home),
             "aliases": [a for a in (row[4] if len(row) > 4 else "").split(",") if a],
         }
     return out
+
+
+def claude_dir_path(d):
+    """A profile Claude dir as a real folder ("default" = ~/.claude)."""
+    return os.path.join(HOME, ".claude") if d == "default" else d
+
+
+def same_dir(a, b):
+    return os.path.realpath(os.path.expanduser(a)) == os.path.realpath(os.path.expanduser(b))
 
 
 def cmd_names():
@@ -57,10 +72,10 @@ def cmd_claude_dirs():
     """Every profile's Claude config dir ("default" = ~/.claude), for install.sh."""
     seen = []
     for p in profiles().values():
-        d = os.path.join(HOME, ".claude") if p["claude"] == "default" else p["claude"]
-        if d not in seen:
-            seen.append(d)
-            print(d)
+        for d in map(claude_dir_path, p["claude_dirs"]):
+            if d not in seen:
+                seen.append(d)
+                print(d)
     return 0
 
 
@@ -71,13 +86,71 @@ def folders():
     return sorted(rows, key=lambda r: len(r[0]), reverse=True)
 
 
-def rule_for(path):
-    """(folder, allowed, default) for the longest folder containing path, or None if unrestricted."""
-    p = os.path.realpath(os.path.expanduser(path))
+def _location_rule(p):
     for folder, allowed, default in folders():
         if p == folder or p.startswith(folder + os.sep):
             return folder, allowed, default
     return None
+
+
+def worktree_main(path):
+    """Main repo folder of the linked git worktree that contains path, else None.
+
+    Reads the nearest `.git` above path without running git: a linked worktree has a `.git`
+    FILE saying `gitdir: <common>/worktrees/<name>` (absolute, or relative to the file).
+    <common> comes from that dir's `commondir` file when present; the main folder is the
+    parent of <common> when it is a `.git` dir, or <common> itself for a bare repo. The main
+    repo need not exist: the rule follows the folder the worktree names. A `.git` directory
+    (normal repo), a submodule's `.git` file (gitdir under .../modules/...) or an unreadable
+    file means "not a linked worktree"."""
+    d = path
+    while True:
+        dotgit = os.path.join(d, ".git")
+        if os.path.isdir(dotgit):
+            return None
+        if os.path.lexists(dotgit):
+            try:
+                with open(dotgit) as f:
+                    first = f.readline(4096).strip()
+            except (OSError, UnicodeDecodeError):
+                return None
+            if not first.startswith("gitdir:"):
+                return None
+            gitdir = os.path.normpath(os.path.join(d, os.path.expanduser(first[len("gitdir:"):].strip())))
+            common = None
+            try:
+                with open(os.path.join(gitdir, "commondir")) as f:
+                    common = os.path.normpath(os.path.join(gitdir, f.readline(4096).strip()))
+            except (OSError, UnicodeDecodeError):
+                pass
+            if common is None:
+                if os.path.basename(os.path.dirname(gitdir)) != "worktrees":
+                    return None
+                common = os.path.dirname(os.path.dirname(gitdir))
+            common = os.path.realpath(common)
+            return os.path.dirname(common) if os.path.basename(common) == ".git" else common
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
+def rule_for(path):
+    """(folder, allowed, default) for the longest folder containing path, or None if unrestricted.
+
+    A path inside a linked git worktree (T3 Code, `git worktree add`, ...) also gets the rule
+    of its main repo's folder. If both places have a rule, a login must be allowed by both."""
+    p = os.path.realpath(os.path.expanduser(path))
+    own = _location_rule(p)
+    main = worktree_main(p)
+    main_rule = _location_rule(main) if main else None
+    if main_rule is None or main_rule == own:
+        return own
+    if own is None:
+        return main_rule
+    folder, allowed, default = main_rule
+    both = [a for a in allowed if a in own[1]]
+    return folder, both, default if default in both else (both[0] if both else default)
 
 
 def profile_of_email(email):
@@ -123,7 +196,10 @@ def gemini_email():
 
 
 def short(path):
-    return path.replace(HOME, "~", 1) if path.startswith(HOME) else path
+    for h in (HOME, os.path.realpath(HOME)):
+        if path == h or path.startswith(h + os.sep):
+            return "~" + path[len(h):]
+    return path
 
 
 # ---------------------------------------------------------------- resolve (shell wrappers)
@@ -136,10 +212,9 @@ def env_profile(tool, profs):
     val = os.environ.get("CLAUDE_CONFIG_DIR" if tool == "claude" else "CODEX_HOME", "")
     if not val:
         return ""
-    real = os.path.realpath(os.path.expanduser(val))
     for name, p in profs.items():
-        t = p[tool]
-        if t != "default" and os.path.realpath(os.path.expanduser(t)) == real:
+        dirs = p["claude_dirs"] if tool == "claude" else [p["codex"]]
+        if any(t != "default" and same_dir(t, val) for t in dirs):
             return name
     return ""
 
@@ -238,6 +313,171 @@ def cmd_crew_env(directory):
     return 0
 
 
+# ---------------------------------------------------------------- T3 Code (read-only report)
+
+HOOK_CMD = "python3 -I $HOME/.config/llm-profiles/llm_profile.py hook"
+T3_DRIVERS = {"claudeAgent": "claude", "codex": "codex"}
+
+
+def t3_dir():
+    return os.path.expanduser(os.environ.get("LLM_PROFILES_T3_DIR") or "~/.t3")
+
+
+def t3_instances():
+    """[(id, tool, instance)] for T3's Claude and Codex provider instances, or None if T3
+    has no settings file."""
+    path = os.path.join(t3_dir(), "userdata", "settings.json")
+    try:
+        with open(path) as f:
+            inst = json.load(f).get("providerInstances") or {}
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError) as e:
+        raise SystemExit(fail("cannot read %s: %s" % (short(path), e)))
+    if isinstance(inst, list):
+        inst = {str(i.get("id", n)): i for n, i in enumerate(inst)}
+    return [(k, T3_DRIVERS[v.get("driver")], v) for k, v in inst.items()
+            if isinstance(v, dict) and v.get("driver") in T3_DRIVERS]
+
+
+def t3_home(tool, inst):
+    """The config dir a T3 instance uses: homePath, or the tool's default."""
+    home = ((inst.get("config") or {}).get("homePath") or "").strip()
+    if home:
+        return os.path.expanduser(home)
+    return "default" if tool == "claude" else os.path.join(HOME, ".codex")
+
+
+def profile_of_dir(tool, home, profs):
+    for name, p in profs.items():
+        dirs = p["claude_dirs"] if tool == "claude" else [p["codex"]]
+        for d in dirs:
+            if d == home or (d != "default" and home != "default" and same_dir(d, home)):
+                return name
+            if tool == "claude" and "default" in (d, home) and same_dir(claude_dir_path(d), claude_dir_path(home)):
+                return name
+    return None
+
+
+def hook_installed(claude_dir):
+    try:
+        with open(os.path.join(claude_dir_path(claude_dir), "settings.json")) as f:
+            hooks = json.load(f).get("hooks") or {}
+    except (OSError, ValueError):
+        return False
+    has = lambda ev: any(h.get("command") == HOOK_CMD for e in hooks.get(ev, []) for h in e.get("hooks", []))
+    return has("SessionStart") and has("PreToolUse")
+
+
+def is_codex_guard(binary):
+    """True if a T3 Codex binaryPath is paddock's t3-codex wrapper."""
+    b = os.path.expanduser(binary or "")
+    return bool(b) and os.path.basename(os.path.realpath(b)) == "t3-codex"
+
+
+def t3_projects():
+    """Real paths of T3's live project roots plus its thread worktrees, read-only. ([], reason) on failure."""
+    import sqlite3
+    errors = []
+    for name in ("statev2.sqlite", "state.sqlite"):
+        path = os.path.join(t3_dir(), "userdata", name)
+        if not os.path.exists(path):
+            continue
+        try:
+            con = sqlite3.connect("file:%s?mode=ro" % path, uri=True, timeout=2)
+            try:
+                rows = con.execute("SELECT title, workspace_root FROM projection_projects "
+                                   "WHERE deleted_at IS NULL").fetchall()
+                try:
+                    rows += con.execute("SELECT DISTINCT t.title, t.worktree_path FROM projection_threads t "
+                                        "WHERE t.deleted_at IS NULL AND t.worktree_path IS NOT NULL "
+                                        "AND t.worktree_path != ''").fetchall()
+                except sqlite3.Error:
+                    pass
+            finally:
+                con.close()
+            return sorted(set(os.path.realpath(r) for _, r in rows if r)), None
+        except sqlite3.Error as e:
+            errors.append("%s: %s" % (name, e))
+    return [], "; ".join(errors) or "no T3 state database found"
+
+
+def cmd_t3_check(summary=False):
+    """Report T3 Code's Claude/Codex instances against profiles.tsv and folders.tsv. Read-only."""
+    inst = t3_instances()
+    if inst is None:
+        if not summary:
+            print("t3      : no T3 settings at %s" % short(os.path.join(t3_dir(), "userdata", "settings.json")))
+        return 0
+    profs = profiles()
+    projects, why = t3_projects()
+    warns, lines = 0, []
+    for key, tool, i in sorted(inst, key=lambda x: (not x[2].get("enabled", True), x[0])):
+        enabled = i.get("enabled", True)
+        cfg = i.get("config") or {}
+        home = t3_home(tool, i)
+        prof = profile_of_dir(tool, home, profs)
+        label = "%s (%s, %s)" % (i.get("displayName") or key, tool, "enabled" if enabled else "disabled")
+        lines.append(label)
+        shown = "default (%s)" % ("~/.claude" if tool == "claude" else "~/.codex") if home == "default" \
+            else short(home)
+        email = claude_email(home) if tool == "claude" else codex_email(home)
+        login = profile_of_email(email)
+        issues = []
+        if not prof:
+            issues.append("config dir is not in profiles.tsv")
+        elif login and login != prof:
+            issues.append("signed in as %s (%s), not %s" % (email, login, prof))
+        if tool == "claude":
+            guard = "hook installed" if hook_installed(home) else "NO HOOK (run install.sh)"
+            if not hook_installed(home):
+                issues.append("Claude hook missing in this config dir")
+        elif is_codex_guard(cfg.get("binaryPath")):
+            guard = "t3-codex guard"
+        else:
+            guard = "UNGUARDED (binaryPath is not t3-codex)"
+        lines.append("  dir    : %s -> %s, login %s" % (shown, prof or "UNKNOWN", email or "unknown"))
+        lines.append("  guard  : %s" % guard)
+        # The guards judge by the signed-in login; fall back to the dir's profile when signed out.
+        acct = login or prof
+        denied = [r for r in projects if (lambda rule: rule and acct not in rule[1])(rule_for(r))]
+        if denied:
+            lines.append("  not allowed in %d T3 project folder(s)%s:" % (
+                len(denied), "" if guard.startswith(("hook", "t3-codex")) else " (NOT blocked)"))
+            for r in denied[:12]:
+                lines.append("           %s" % short(r))
+            if len(denied) > 12:
+                lines.append("           ... and %d more" % (len(denied) - 12))
+            if tool == "codex" and not is_codex_guard(cfg.get("binaryPath")) and enabled:
+                issues.append("unguarded Codex can open folders its account may not use")
+        for msg in issues:
+            lines.append("  WARN   : " + msg)
+        if enabled:
+            warns += len(issues)
+    if why:
+        lines.append("projects: unreadable (%s)" % why)
+    if summary:
+        n = sum(1 for _, _, i in inst if i.get("enabled", True))
+        print("t3      : %d enabled Claude/Codex instance(s), %s" % (
+            n, "%d warning(s): run llm_profile.py t3-check" % warns if warns else "no warnings"))
+    else:
+        print("\n".join(lines))
+        print("t3      : %s" % ("%d warning(s) on enabled instances" % warns if warns else "no warnings on enabled instances"))
+    return 1 if warns else 0
+
+
+def cmd_t3_claude_dirs():
+    """Claude config dirs named by T3 Code settings (enabled or not), for install.sh."""
+    seen = []
+    for _, tool, i in t3_instances() or []:
+        if tool == "claude":
+            d = claude_dir_path(t3_home(tool, i))
+            if d not in seen:
+                seen.append(d)
+                print(d)
+    return 0
+
+
 def fail(msg):
     print("llm-profile: " + msg, file=sys.stderr)
     return 3
@@ -330,6 +570,10 @@ def main(argv):
         return cmd_check(argv[1])
     if argv == ["hook"]:
         return cmd_hook()
+    if argv in (["t3-check"], ["t3-check", "--summary"]):
+        return cmd_t3_check(summary=len(argv) == 2)
+    if argv == ["t3-claude-dirs"]:
+        return cmd_t3_claude_dirs()
     print(__doc__, file=sys.stderr)
     return 2
 

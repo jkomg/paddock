@@ -1,17 +1,29 @@
 #!/usr/bin/env bash
 # Install (or --uninstall) the folder-to-login guard.
 #   Layer 1: ~/.zshrc sources llm-profile.zsh (folder-aware claude / codex / agy wrappers).
-#   Layer 2: Claude Code SessionStart + PreToolUse hook in every Claude config dir.
+#   Layer 2: Claude Code SessionStart + PreToolUse hook in every Claude config dir, including
+#            the ones T3 Code's Claude provider instances use.
 # Backups: <file>.llm-profiles-bak (written once, never overwritten).
 set -euo pipefail
 HERE="$HOME/.config/llm-profiles"
 MODE=${1:-install}
-# Every profile's Claude config dir (profiles.tsv), plus any extra dirs in LLM_PROFILES_EXTRA_CLAUDE_DIRS
-# (colon-separated) that should get the hook too.
+# Every profile's Claude config dir (profiles.tsv), every Claude dir a T3 Code provider instance
+# points at (~/.t3/userdata/settings.json, enabled or not; listed below), plus any extra dirs in
+# LLM_PROFILES_EXTRA_CLAUDE_DIRS (colon-separated) that should get the hook too.
 SETTINGS=()
-while IFS= read -r d; do SETTINGS+=("$d/settings.json"); done < <(python3 -I "$HERE/llm_profile.py" claude-dirs)
+add_dir() {
+  local d=$1 r s
+  [ -n "$d" ] || return 0
+  r=$(cd "$d" 2>/dev/null && pwd -P || echo "$d")
+  for s in ${SETTINGS[@]+"${SETTINGS[@]}"}; do [ "$s" = "$r/settings.json" ] && return 1; done
+  SETTINGS+=("$r/settings.json")
+}
+while IFS= read -r d; do add_dir "$d" || true; done < <(python3 -I "$HERE/llm_profile.py" claude-dirs)
+while IFS= read -r d; do
+  if add_dir "$d"; then echo "T3 Code : Claude dir $d (from T3 settings)"; fi
+done < <(python3 -I "$HERE/llm_profile.py" t3-claude-dirs)
 IFS=: read -ra EXTRA <<< "${LLM_PROFILES_EXTRA_CLAUDE_DIRS:-}"
-for d in ${EXTRA[@]+"${EXTRA[@]}"}; do [ -n "$d" ] && SETTINGS+=("$d/settings.json"); done
+for d in ${EXTRA[@]+"${EXTRA[@]}"}; do add_dir "$d" || true; done
 
 backup() { [ -e "$1" ] && [ ! -e "$1.llm-profiles-bak" ] && cp -p "$1" "$1.llm-profiles-bak"; return 0; }
 
