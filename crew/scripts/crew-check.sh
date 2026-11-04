@@ -39,4 +39,4 @@ fi
 # T3 Code, if installed: one line (details: llm_profile.py t3-check). Informational only.
 python3 -I "$CREW_PROFILES/llm_profile.py" t3-check --summary 2>/dev/null || true
 
-echo; echo "Expected: every login above belongs to the $CREW_ACCOUNT account (qwen is local). Anything else -> do not dispatch."
+echo; echo "Expected: every login above belongs to the $CREW_ACCOUNT account$(crew_has qwen && echo ' (qwen is local)'). Anything else -> do not dispatch."

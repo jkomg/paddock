@@ -14,9 +14,9 @@ It has two parts:
      folder the session's login may not use.
 2. **A Claude skill, `crew` (`crew/`).** Each account gets a coordinator that delegates to
    helper agents under the **same** login:
-   - qwen (a local OpenCode model shared by all accounts)
    - that account's Codex
-   - optionally Gemini and a budget-checked LiteLLM reviewer
+   - optionally qwen (a local OpenCode model shared by all accounts), Gemini, and a
+     budget-checked LiteLLM reviewer
 
    Work is handed off through small files, so the coordinator reads only short results.
    For big projects the coordinator starts a project lead in its own herdr Space and tracks
@@ -38,7 +38,7 @@ Space "audit"                lead-globex-audit + its crew (qwen, gemini, codex)
 | `llm-profiles/install.sh` | Adds the wrappers to `~/.zshrc` and the hook to each Claude config dir, including T3 Code's (`--uninstall` reverses it) |
 | `llm-profiles/t3-codex`, `codex_guard.py` | Folder guard for Codex inside T3 Code (set as the instance's binary path) |
 | `llm-profiles/tests/` | `python3 -m unittest discover -s llm-profiles/tests` |
-| `llm-profiles/*.tsv.example` | Accounts (`profiles`), folder rules (`folders`), helper workers (`crews`) |
+| `llm-profiles/*.tsv.example` | Accounts (`profiles`), folder rules (`folders`), helper workers (`crews`), optional app launchers (`wrappers`) |
 | `crew/SKILL.md` | The `crew` skill the coordinators follow |
 | `crew/scripts/` | `crew-check`, `crew-up` and `delegate` handle workers; `project-up` and `projects` handle project leads |
 | `crew/worker-rules.md`, `crew/lead-rules.md` | Standing rules sent with every brief |
@@ -68,7 +68,10 @@ Sign in each account once in its own config dir, for example
 the login. Start a coordinator per account in a herdr Space whose label contains
 "coordinator", then run `~/.local/share/crew/scripts/crew-check.sh` in it.
 
-qwen's calls go through a usage gateway (`CREW_GATEWAY`). This is an OpenAI-compatible proxy
+qwen is optional. On a machine without the memory for a local model, leave it out of
+`crews.tsv`: the crew then runs with Codex (and Gemini or LiteLLM if listed), and no
+gateway, LM Studio or Ollama is needed. Where you do use it, qwen's calls go through a usage
+gateway (`CREW_GATEWAY`). This is an OpenAI-compatible proxy
 that records tokens per account and project from `X-TF-Profile` / `X-TF-Project` headers.
 Without one, leave `qwen` out of `crews.tsv`, or point `CREW_GATEWAY` at a plain proxy.
 
@@ -110,9 +113,18 @@ What is not guarded:
 - `t3-codex` checks the folder a thread works in, not every command a turn runs: a
   full-access Codex turn can still run a command that reaches another folder. Claude's hook
   sees only paths it can read in tool calls. Neither is a sandbox.
-- A Codex instance whose binary path is not `t3-codex` is unguarded. So is any other T3
-  provider (OpenCode, Cursor, Antigravity). Keep the instances of accounts you are not using
-  disabled, or use only one account's Codex per T3.
+- A Codex instance whose binary path is not `t3-codex` is unguarded. Keep the instances of
+  accounts you are not using disabled, or use only one account's Codex per T3.
+- **Cursor** is unguarded and unmapped. T3 runs Cursor's agent inside its own process through
+  the Cursor SDK, signed in through the keychain or `CURSOR_API_KEY`. There is no binary or
+  config dir per instance, so paddock can neither tell which account it uses nor see its
+  folders. Safe practice: sign Cursor in to one account, and open only that account's
+  projects in a Cursor thread. `t3-check` warns while an enabled Cursor instance can see
+  T3 projects that have a folder rule.
+- **OpenCode** (and Antigravity) have no paddock guard either. `t3-check` reports an OpenCode
+  instance as unmapped and unmetered unless its binary path is a per-account wrapper listed in
+  the optional `llm-profiles/wrappers.tsv` (see `wrappers.tsv.example`). Then it lists the
+  projects that account may not use. Listing a wrapper maps it; it does not guard it.
 - `t3-codex` was tested against Codex 0.166.0. A later protocol change could make it refuse
   more (it fails closed), but rerun the tests after upgrading Codex.
 

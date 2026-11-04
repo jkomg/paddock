@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Start this account's crew in a herdr tab. The account is the coordinator's own login
 # (see crew-lib.sh); its workers come from ~/.config/llm-profiles/crews.tsv:
-# qwen (local OpenCode on LM Studio MLX, shared and queued), codex (the account's CODEX_HOME),
-# gemini (agy; only for the account its single Google login belongs to).
+# codex (the account's CODEX_HOME), qwen (optional local OpenCode on LM Studio MLX, shared and
+# queued), gemini (agy; only for the account its single Google login belongs to).
 # Usage: crew-up.sh [project-dir]   (default: current directory)
 # Idempotent: agents that are already live are left alone.
 set -euo pipefail
@@ -20,7 +20,10 @@ GATEWAY="$CREW_GATEWAY"
 QWEN_MODEL="${CREW_QWEN_MODEL:-ollama/qwen3.6-crew}"
 QWEN_CTX=65536; QWEN_OUT=16384
 
-curl -fsS -o /dev/null "$GATEWAY/" || { echo "crew-up: usage gateway not reachable at $GATEWAY (CREW_GATEWAY); start it first" >&2; exit 1; }
+# Only qwen talks to the usage gateway; a crew without a local model does not need it.
+if crew_has qwen; then
+  curl -fsS -o /dev/null "$GATEWAY/" || { echo "crew-up: usage gateway not reachable at $GATEWAY (CREW_GATEWAY); start it first" >&2; exit 1; }
+fi
 
 live() { herdr agent list | python3 -I -c 'import json,sys; print(" ".join(a.get("name") or "" for a in json.load(sys.stdin)["result"]["agents"]))'; }
 jget() { python3 -I -c "import json,sys; d=json.load(sys.stdin); print($1)"; }

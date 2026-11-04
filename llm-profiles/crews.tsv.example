@@ -1,9 +1,10 @@
 # Which helper workers each account's coordinator may use, and where its usage is recorded.
-# workers: qwen (local OpenCode model, shared by all accounts and queued at the gateway),
+# workers: qwen (optional local OpenCode model, shared by all accounts and queued at the
+#          gateway; leave it out where the machine lacks the memory, as for personal below),
 #          codex (that profile's codex-home), gemini (agy; one Google login per machine, so give it
 #          to that login's account only), litellm (budget-checked reviewer; see crew/local.env).
 # ledger: usage ledger folder name under CREW_USAGE_ROOT.
 # profile	workers	ledger
 acme	qwen,codex	acme
 globex	qwen,gemini,codex,litellm	globex
-personal	qwen,codex	personal
+personal	codex	personal

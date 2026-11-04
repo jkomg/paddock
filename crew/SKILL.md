@@ -1,6 +1,6 @@
 ---
 name: crew
-description: Delegate bounded tasks from a lead Claude coordinator to helper agents in herdr that run under the SAME account as the lead. Helpers are qwen (a local OpenCode model shared by all accounts), codex (that account's ChatGPT login), and where the account's crew lists them, gemini (agy) and a budget-checked LiteLLM reviewer. File handoffs mean the lead reads only short results. Also starts and tracks per-project lead sessions in their own herdr Spaces. Use when a task in an account folder (see ~/.config/llm-profiles/folders.tsv) involves large reads, log or repo sweeps, boilerplate, test drafts, a second implementation opinion or an independent review, and offloading it would save lead tokens. Not for small edits the lead can do faster itself.
+description: Delegate bounded tasks from a lead Claude coordinator to helper agents in herdr that run under the SAME account as the lead. Helpers are whichever of these the account's crew lists: codex (that account's ChatGPT login), qwen (an optional local OpenCode model shared by all accounts), gemini (agy) and a budget-checked LiteLLM reviewer. File handoffs mean the lead reads only short results. Also starts and tracks per-project lead sessions in their own herdr Spaces. Use when a task in an account folder (see ~/.config/llm-profiles/folders.tsv) involves large reads, log or repo sweeps, boilerplate, test drafts, a second implementation opinion or an independent review, and offloading it would save lead tokens. Not for small edits the lead can do faster itself.
 ---
 
 # Crew
@@ -34,9 +34,10 @@ Machine-specific settings (gateway, ledger root, reviewer command) are in
 
 This opens a `crew` tab with this account's live workers in `<project-dir>`.
 
-- It needs the usage gateway (`CREW_GATEWAY`, default :8741), because qwen's calls go
-  through its `/lmstudio` route.
-- It loads `qwen36-mlx` into LM Studio if that model is not loaded (about 20 GB of memory).
+- qwen is optional. Only a crew that lists it in `crews.tsv` needs the usage gateway
+  (`CREW_GATEWAY`, default :8741), because qwen's calls go through its `/lmstudio` route.
+- For such a crew it loads `qwen36-mlx` into LM Studio if that model is not loaded (about
+  20 GB of memory).
 - `CREW_QWEN_BACKEND=ollama` falls back to Ollama (`qwen3.6-crew`, 64K context) through
   `/ollama`.
 - It is idempotent.
@@ -86,10 +87,14 @@ skill for its own crew.
 | Implementation or a second opinion on a design or diff | `codex` | different provider from the lead |
 | Independent final review of a frozen diff or plan | `litellm` | budget-checked; reviewer only |
 
-Use only the workers `crew-check.sh` lists. Escalate only after a failed or unsuitable `qwen`
-attempt, and say why. Doing the task yourself is the better choice when the brief plus
+Use only the workers `crew-check.sh` lists. When the crew has qwen, escalate only after a
+failed or unsuitable `qwen` attempt, and say why. Doing the task yourself is the better choice when the brief plus
 checking the result would cost about as much as the task itself. Without gemini, send large
 reads to codex or split them for qwen.
+
+**Without qwen** (a crew with no local model): skip the local attempt. Send bounded tasks to
+`codex`, or do them yourself when briefing and checking would cost about as much. Every
+delegation then spends that account's tokens, so delegate only what saves lead tokens.
 
 ## Dispatch
 
@@ -110,7 +115,7 @@ reads to codex or split them for qwen.
    to diagnose a failure.
 4. Take the model from the gateway readout or the ledger, never the worker's claim.
    Re-run any checks the worker claims passed. Worker output is evidence to verify, not fact.
-5. qwen is one local model shared by every account's crew; its calls queue at the gateway.
+5. qwen, where a crew has it, is one local model shared by every account's crew; its calls queue at the gateway.
    Other workers can run alongside each other.
 
 `litellm` takes a review packet of 64 KiB or less: the requirements plus the diff or plan.
