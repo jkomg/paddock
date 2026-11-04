@@ -252,8 +252,16 @@ class T3Check(unittest.TestCase):
             "oc_gx": {"driver": "opencode", "displayName": "OpenCode Globex", "enabled": True,
                       "config": {"binaryPath": "~/bin/opencode-globex"}},
             "cur": {"driver": "cursor", "displayName": "Cursor", "enabled": True},
+            "agy": {"driver": "antigravity", "displayName": "Antigravity", "enabled": True},
+            "codex_l": {"driver": "codex", "displayName": "Codex Launch", "enabled": False,
+                        "config": {"homePath": P(".codex-globex"), "binaryPath": "~/bin/guarded-codex"}},
+            "codex_b": {"driver": "codex", "displayName": "Codex Bin", "enabled": False,
+                        "config": {"homePath": P(".codex-globex"), "binaryPath": "~/bin/fat-codex"}},
         }, [P("Projects", "acme", "a1"), P("Projects", "globex", "g1"), P("scratch")])
         write(os.path.join(CFG, "wrappers.tsv"), "~/bin/opencode-globex\tglobex\n")
+        write(P("bin", "guarded-codex"), '#!/bin/sh\nPADDOCK_CODEX_BIN=/x/codex exec "$HOME/.config/llm-profiles/t3-codex" "$@"\n')
+        with open(P("bin", "fat-codex"), "wb") as f:
+            f.write(b"\x7fELF\0" + b"t3-codex" + b"\0" * 100)       # binary that merely contains the name
         os.makedirs(P(".t3claude-globex"), exist_ok=True)
         write(P(".t3claude-globex", ".claude.json"), json.dumps({"oauthAccount": {"emailAddress": "me@globex.example"}}))
         write(P(".claude", "settings.json"), json.dumps({"hooks": {
@@ -288,18 +296,24 @@ class T3Check(unittest.TestCase):
         ocg = out.split("OpenCode Globex (opencode, enabled)")[1].split("\nC")[0]
         self.assertIn("account: globex", ocg)
         self.assertIn("~/Projects/acme/a1", ocg)
+        agy = out.split("Antigravity (antigravity, enabled)")[1].split("\nC")[0]
+        self.assertIn("unmapped (T3-managed ACP process", agy)
+        self.assertIn("UNGUARDED", agy)
+        self.assertIn("t3-codex guard (via launcher ~/bin/guarded-codex)", out.split("Codex Launch")[1].split("\nC")[0])
+        self.assertIn("UNGUARDED (binaryPath is ~/bin/fat-codex", out.split("Codex Bin")[1])
+        self.assertIn("UNGUARDED (binaryPath is unset", out.split("Codex Acme")[1].split("Codex Bin")[0])
         cur = out.split("Cursor (cursor, enabled)")[1].split("\nOpenCode")[0]
         self.assertIn("unmapped (in-process Cursor SDK", cur)
         self.assertIn("can open all 2 T3 project folder(s)", cur)
         self.assertNotIn("gone", out)                              # deleted project
-        self.assertIn("5 warning(s)", out)   # hook missing, unguarded codex, 2 OpenCode, Cursor
+        self.assertIn("6 warning(s)", out)   # hook missing, unguarded codex, 2 OpenCode, Cursor, Antigravity
         after = {f: read(os.path.join(self.t3, "userdata", f), "rb") for f in before}
         self.assertEqual(before, after)
         self.assertFalse(os.path.exists(os.path.join(self.t3, "userdata", "statev2.sqlite-wal")))
 
     def test_summary_and_dirs(self):
         r = self.check("--summary")
-        self.assertIn("7 enabled provider instance(s), 5 warning(s)", r.stdout)
+        self.assertIn("8 enabled provider instance(s), 6 warning(s)", r.stdout)
         r = run([sys.executable, "-I", os.path.join(SRC, "llm_profile.py"), "t3-claude-dirs"],
                 env=env(LLM_PROFILES_T3_DIR=self.t3))
         self.assertEqual(r.stdout.split(), [P(".claude"), P(".t3claude-globex")])
@@ -491,6 +505,31 @@ class Wrapper(unittest.TestCase):
         r = self.wrap(["exec", "-"], P("Projects", "acme"))
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(len(self.calls()), 1)
+
+    def test_lookup_skips_launchers_and_names_the_variable(self):
+        bindir = os.path.join(SANDBOX, "lookup-bin")
+        write(os.path.join(bindir, "codex"), '#!/bin/sh\nexec "%s" "$@"\n' % os.path.join(SRC, "t3-codex"))
+        os.chmod(os.path.join(bindir, "codex"), 0o755)
+        e = env(PATH=bindir + ":/usr/bin:/bin", CODEX_HOME=P(".codex"))
+        e["HOME"] = os.path.join(SANDBOX, "emptyhome")                # no ~/.local/bin/codex
+        r = run([os.path.join(SRC, "t3-codex"), "--version"], env=e, cwd=SANDBOX)
+        if any(os.path.exists(os.path.join(d, "codex")) for d in ("/opt/homebrew/bin", "/usr/local/bin")):
+            self.skipTest("a real codex is installed in a system dir")
+        self.assertEqual(r.returncode, 3, r.stdout)
+        self.assertIn("PADDOCK_CODEX_BIN", r.stderr)
+        self.assertIn("/opt/homebrew/bin", r.stderr)
+
+    def test_lookup_finds_local_bin_off_path(self):
+        home = os.path.join(SANDBOX, "lbhome")
+        write(os.path.join(home, ".local", "bin", "codex"), "#!/bin/sh\necho codex-cli 7.7.7\n")
+        os.chmod(os.path.join(home, ".local", "bin", "codex"), 0o755)
+        e = env(PATH="/usr/bin:/bin", CODEX_HOME=P(".codex"))
+        e["HOME"] = home
+        r = run([os.path.join(SRC, "t3-codex"), "--version"], env=e, cwd=SANDBOX)
+        if r.stdout.strip() != "codex-cli 7.7.7" and any(
+                os.path.exists(os.path.join(d, "codex")) for d in ("/opt/homebrew/bin", "/usr/local/bin")):
+            self.skipTest("PATH order differs; a system codex was found first")
+        self.assertEqual(r.stdout.strip(), "codex-cli 7.7.7", r.stderr)
 
     def test_socket_modes_refused(self):
         for args in (["app-server", "--listen", "unix://"], ["app-server", "daemon", "start"],

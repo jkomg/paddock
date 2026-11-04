@@ -87,7 +87,11 @@ The herdr crew is optional: the guard works without herdr.
    the wrapper uses, list both in `profiles.tsv`, comma-separated, wrapper's first:
    `globex  @globex.example  ~/.claude-globex,~/t3/claude-globex  ~/.codex-globex`.
 2. **Guard Codex.** Set every Codex instance's binary path to `~/.config/llm-profiles/t3-codex`.
-   It finds the real `codex` on `PATH` (or `PADDOCK_CODEX_BIN`).
+   That works directly: it finds the real `codex` on `PATH`, then in `~/.local/bin`,
+   `/opt/homebrew/bin` and `/usr/local/bin`, which matters because GUI apps often lack
+   `~/.local/bin` on `PATH`. Only for an unusual install, point `PADDOCK_CODEX_BIN` at the
+   real binary, for example from a small launcher script that sets it and execs `t3-codex`.
+   `t3-check` recognises such a launcher as guarded.
 3. **Install.** Run `bash llm-profiles/install.sh` again. It also puts the hook into every
    Claude dir T3's settings name, and prints them.
 4. **Check.** `python3 llm-profiles/llm_profile.py t3-check` is read-only. For each instance it
@@ -121,7 +125,10 @@ What is not guarded:
   folders. Safe practice: sign Cursor in to one account, and open only that account's
   projects in a Cursor thread. `t3-check` warns while an enabled Cursor instance can see
   T3 projects that have a folder rule.
-- **OpenCode** (and Antigravity) have no paddock guard either. `t3-check` reports an OpenCode
+- **Antigravity** is unguarded and unmapped. T3 runs it as its own ACP child process, signed
+  in through T3's per-instance profile rather than agy's login, so paddock cannot tell its
+  account. Use the same practice as for Cursor.
+- **OpenCode** has no paddock guard either. `t3-check` reports an OpenCode
   instance as unmapped and unmetered unless its binary path is a per-account wrapper listed in
   the optional `llm-profiles/wrappers.tsv` (see `wrappers.tsv.example`). Then it lists the
   projects that account may not use. Listing a wrapper maps it; it does not guard it.

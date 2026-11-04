@@ -192,18 +192,20 @@ class Guard:
             self.out.flush()
 
 
+CODEX_DIRS = ("~/.local/bin", "/opt/homebrew/bin", "/usr/local/bin")
+
+
 def real_codex():
-    """The real codex binary: $PADDOCK_CODEX_BIN, else the first `codex` on PATH (plus common
-    install dirs) that is not this wrapper."""
+    """The real codex binary: $PADDOCK_CODEX_BIN, else the first `codex` on PATH, then in the
+    usual install dirs (GUI apps such as T3 often lack ~/.local/bin on PATH). Never t3-codex
+    itself or a launcher for it, which would loop."""
     explicit = os.environ.get("PADDOCK_CODEX_BIN")
     if explicit:
         return os.path.expanduser(explicit)
-    me = {os.path.realpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "t3-codex"))}
-    dirs = os.environ.get("PATH", "").split(os.pathsep) + [
-        os.path.join(lp.HOME, ".local", "bin"), "/opt/homebrew/bin", "/usr/local/bin"]
+    dirs = os.environ.get("PATH", "").split(os.pathsep) + [os.path.expanduser(d) for d in CODEX_DIRS]
     for d in dirs:
         c = os.path.join(d, "codex")
-        if d and os.path.isfile(c) and os.access(c, os.X_OK) and os.path.realpath(c) not in me:
+        if d and os.path.isfile(c) and os.access(c, os.X_OK) and not lp.is_codex_guard(c):
             return c
     return None
 
@@ -247,7 +249,8 @@ def run_proxy(cmd, prof, label):
 def main(argv):
     codex = real_codex()
     if not codex:
-        return refuse("cannot find the real codex binary (set PADDOCK_CODEX_BIN)")
+        return refuse("cannot find the real codex binary on PATH or in %s; set PADDOCK_CODEX_BIN "
+                      "to its full path" % ", ".join(CODEX_DIRS))
     first = argv[0] if argv else ""
     if first in PASS_SUBCOMMANDS:
         os.execv(codex, [codex] + argv)

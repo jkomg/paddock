@@ -316,7 +316,8 @@ def cmd_crew_env(directory):
 # ---------------------------------------------------------------- T3 Code (read-only report)
 
 HOOK_CMD = "python3 -I $HOME/.config/llm-profiles/llm_profile.py hook"
-T3_DRIVERS = {"claudeAgent": "claude", "codex": "codex", "opencode": "opencode", "cursor": "cursor"}
+T3_DRIVERS = {"claudeAgent": "claude", "codex": "codex", "opencode": "opencode", "cursor": "cursor",
+              "antigravity": "antigravity"}
 
 
 def wrappers():
@@ -378,10 +379,31 @@ def hook_installed(claude_dir):
     return has("SessionStart") and has("PreToolUse")
 
 
-def is_codex_guard(binary):
-    """True if a T3 Codex binaryPath is paddock's t3-codex wrapper."""
+def codex_guard_kind(binary):
+    """How a T3 Codex binaryPath reaches paddock's guard: "t3-codex" (the wrapper itself),
+    "launcher" (a small text script that names t3-codex or codex_guard.py, e.g. one that sets
+    PADDOCK_CODEX_BIN first), or None. Reads at most 2 KB; never runs the file."""
     b = os.path.expanduser(binary or "")
-    return bool(b) and os.path.basename(os.path.realpath(b)) == "t3-codex"
+    if not b:
+        return None
+    real = os.path.realpath(b)
+    if os.path.basename(real) == "t3-codex":
+        return "t3-codex"
+    try:
+        if not os.path.isfile(real) or os.path.getsize(real) > 65536:
+            return None
+        with open(real, "rb") as f:
+            head = f.read(2048)
+    except OSError:
+        return None
+    if b"\0" not in head and (b"t3-codex" in head or b"codex_guard.py" in head):
+        return "launcher"
+    return None
+
+
+def is_codex_guard(binary):
+    """True if a T3 Codex binaryPath is paddock's t3-codex wrapper or a launcher for it."""
+    return codex_guard_kind(binary) is not None
 
 
 def t3_projects():
@@ -426,7 +448,7 @@ def cmd_t3_check(summary=False):
     for key, tool, i in sorted(inst, key=lambda x: (not x[2].get("enabled", True), x[0])):
         enabled = i.get("enabled", True)
         cfg = i.get("config") or {}
-        if tool in ("opencode", "cursor"):
+        if tool in ("opencode", "cursor", "antigravity"):
             n, issues = other_instance(key, tool, i, cfg, wraps, projects, restricted, lines)
             warns += n if enabled else 0
             continue
@@ -447,10 +469,13 @@ def cmd_t3_check(summary=False):
             guard = "hook installed" if hook_installed(home) else "NO HOOK (run install.sh)"
             if not hook_installed(home):
                 issues.append("Claude hook missing in this config dir")
-        elif is_codex_guard(cfg.get("binaryPath")):
+        elif codex_guard_kind(cfg.get("binaryPath")) == "t3-codex":
             guard = "t3-codex guard"
+        elif codex_guard_kind(cfg.get("binaryPath")) == "launcher":
+            guard = "t3-codex guard (via launcher %s)" % short(os.path.expanduser(cfg["binaryPath"]))
         else:
-            guard = "UNGUARDED (binaryPath is not t3-codex)"
+            guard = "UNGUARDED (binaryPath is %s, not t3-codex or a launcher for it)" % (
+                short(os.path.expanduser(cfg["binaryPath"])) if cfg.get("binaryPath") else "unset")
         lines.append("  dir    : %s -> %s, login %s" % (shown, prof or "UNKNOWN", email or "unknown"))
         lines.append("  guard  : %s" % guard)
         # The guards judge by the signed-in login; fall back to the dir's profile when signed out.
@@ -482,18 +507,22 @@ def cmd_t3_check(summary=False):
 
 
 def other_instance(key, tool, i, cfg, wraps, projects, restricted, lines):
-    """OpenCode / Cursor: paddock has no guard for either. Returns (warning count, issues).
+    """OpenCode / Cursor / Antigravity: paddock guards none of them. Returns (warning count, issues).
 
     OpenCode maps to a profile only when its binaryPath is listed in wrappers.tsv; otherwise
     it is unmapped (and unmetered by paddock). Cursor runs in T3's own process through the
     Cursor SDK, signed in through the keychain or CURSOR_API_KEY, with no per-instance config
-    dir or binary, so its account cannot be read and no wrapper or hook can see its folders."""
+    dir or binary, so its account cannot be read and no wrapper or hook can see its folders.
+    Antigravity runs as a T3-managed ACP child process signed in through T3's own per-instance
+    profile (not agy's ~/.gemini login), so its account cannot be mapped either."""
     enabled = i.get("enabled", True)
     lines.append("%s (%s, %s)" % (i.get("displayName") or key, tool, "enabled" if enabled else "disabled"))
     binary = os.path.expanduser(cfg.get("binaryPath") or "")
     prof = wraps.get(os.path.realpath(binary)) if (tool == "opencode" and binary) else None
     if tool == "cursor":
         lines.append("  account: unmapped (in-process Cursor SDK; sign-in is T3's, not a config dir)")
+    elif tool == "antigravity":
+        lines.append("  account: unmapped (T3-managed ACP process; sign-in is T3's per-instance profile)")
     elif prof:
         lines.append("  account: %s (binaryPath %s is in wrappers.tsv)" % (prof, short(binary)))
     else:
