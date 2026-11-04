@@ -468,6 +468,19 @@ class GuardUnit(unittest.TestCase):
         resp = b'{"id":"srv-1","result":{"decision":"accept"}}\n'
         self.assertEqual(self.client(resp), (resp, None))
 
+    def test_command_exec_without_cwd_uses_server_cwd(self):
+        old = os.getcwd()
+        try:
+            os.makedirs(self.bad, exist_ok=True)
+            os.chdir(self.bad)
+            self.refused(req(1, "command/exec", command=["ls"]))
+            os.makedirs(self.ok, exist_ok=True)
+            os.chdir(self.ok)
+            line = req(2, "command/exec", command=["ls"])
+            self.assertEqual(self.client(line), (line, None))
+        finally:
+            os.chdir(old)
+
     def test_unrecognised_account_denied_in_every_rule_folder(self):
         g = cg.Guard(None, "signed out (unrecognised)", None)
         fwd, rep = g.from_client(req(1, "thread/start", cwd=self.ok))
@@ -530,6 +543,31 @@ class Wrapper(unittest.TestCase):
                 os.path.exists(os.path.join(d, "codex")) for d in ("/opt/homebrew/bin", "/usr/local/bin")):
             self.skipTest("PATH order differs; a system codex was found first")
         self.assertEqual(r.stdout.strip(), "codex-cli 7.7.7", r.stderr)
+
+    def proxy(self, server_script):
+        write(self.fake, server_script)
+        os.chmod(self.fake, 0o755)
+        return subprocess.Popen([os.path.join(SRC, "t3-codex"), "app-server"], cwd=HOME,
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                env=env(PADDOCK_CODEX_BIN=self.fake, CODEX_HOME=P(".codex")))
+
+    def test_proxy_exits_when_server_dies_with_client_stdin_open(self):
+        p = self.proxy('#!/bin/sh\necho \'{"method":"bye"}\'\nexit 7\n')
+        try:
+            self.assertEqual(p.stdout.readline(), b'{"method":"bye"}\n')
+            self.assertEqual(p.wait(timeout=10), 7)              # stdin still open
+        finally:
+            p.kill(); p.stdin.close(); p.stdout.close()
+
+    def test_proxy_stops_server_that_ignores_client_eof(self):
+        p = self.proxy("#!/bin/sh\ntrap '' HUP\nexec sleep 60 </dev/null\n")
+        try:
+            p.stdin.close()
+            start = time.time()
+            p.wait(timeout=20)
+            self.assertLess(time.time() - start, 15)
+        finally:
+            p.kill(); p.stdout.close()
 
     def test_socket_modes_refused(self):
         for args in (["app-server", "--listen", "unix://"], ["app-server", "daemon", "start"],

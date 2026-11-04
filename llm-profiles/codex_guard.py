@@ -39,6 +39,8 @@ PATH_KEYS = {
 READ_OK = {"thread/read", "thread/turns/list", "thread/items/list", "thread/unsubscribe",
            "thread/loaded/list"}
 OPENS_THREAD = {"thread/start", "thread/resume", "thread/fork"}
+# Methods that run in the server's own cwd when the request names none.
+DEFAULT_CWD = {"command/exec"}
 ERR_CODE = -32001
 PASS_SUBCOMMANDS = {"--version", "-V", "--help", "-h", "help", "login", "logout", "mcp",
                     "completion", "features"}
@@ -117,6 +119,10 @@ class Guard:
         if not isinstance(params, dict):
             params = {}
         tid = params.get("threadId")
+        if method in DEFAULT_CWD and not params.get("cwd"):
+            why = path_problem(self.prof, os.getcwd())   # the server runs it in our (shared) cwd
+            if why:
+                return why
         for p in named_paths(params):
             if not os.path.isabs(os.path.expanduser(p)):
                 return "relative path %r: the guard cannot tell which folder it means" % p
@@ -221,8 +227,20 @@ def run_proxy(cmd, prof, label):
     guard = Guard(prof, label, out)
 
     def pump_server():
-        for line in iter(child.stdout.readline, b""):
-            guard.write(guard.from_server(line))
+        # When the server exits, exit too: the main thread may be blocked reading the client's
+        # stdin, and the client (T3) watches this process, not the real codex.
+        try:
+            for line in iter(child.stdout.readline, b""):
+                guard.write(guard.from_server(line))
+        except (BrokenPipeError, OSError):
+            pass
+        code = child.wait()
+        with guard.lock:   # no reply from the main thread is mid-write when we exit
+            try:
+                out.flush()
+            except OSError:
+                pass
+            os._exit(code if code >= 0 else 128 - code)
 
     t = threading.Thread(target=pump_server, daemon=True)
     t.start()
@@ -234,16 +252,24 @@ def run_proxy(cmd, prof, label):
             if fwd:
                 child.stdin.write(fwd)
                 child.stdin.flush()
-    except (BrokenPipeError, KeyboardInterrupt):
+    except (BrokenPipeError, OSError, KeyboardInterrupt):
         pass
     finally:
         try:
             child.stdin.close()
         except OSError:
             pass
-    code = child.wait()
+    # The client is gone: give the server a moment to exit on EOF, then stop it.
+    for stop in (None, child.terminate, child.kill):
+        if stop:
+            stop()
+        try:
+            code = child.wait(timeout=5)
+            break
+        except subprocess.TimeoutExpired:
+            code = None
     t.join(timeout=5)
-    return code
+    return code if code is not None and code >= 0 else 1
 
 
 def main(argv):
