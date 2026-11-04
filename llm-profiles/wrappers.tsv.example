@@ -1,0 +1,6 @@
+# Optional. Per-account launchers that T3 Code (or another app) runs as a provider's binary
+# path, e.g. an OpenCode wrapper that meters one account's usage. t3-check maps an instance
+# whose binaryPath is listed here to that profile; unlisted OpenCode instances are reported
+# as unmapped and unmetered. Listing a wrapper does not guard folders.
+# binary-path	profile
+~/bin/opencode-globex	globex

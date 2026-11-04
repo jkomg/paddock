@@ -8,5 +8,6 @@ __pycache__/
 llm-profiles/profiles.tsv
 llm-profiles/folders.tsv
 llm-profiles/crews.tsv
+llm-profiles/wrappers.tsv
 crew/local.env
 crew/local/

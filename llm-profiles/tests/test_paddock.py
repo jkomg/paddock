@@ -249,7 +249,11 @@ class T3Check(unittest.TestCase):
             "codex_odd": {"driver": "codex", "displayName": "Codex Odd", "enabled": False,
                           "config": {"homePath": P(".codex-odd")}},
             "oc": {"driver": "opencode", "displayName": "OpenCode", "enabled": True},
+            "oc_gx": {"driver": "opencode", "displayName": "OpenCode Globex", "enabled": True,
+                      "config": {"binaryPath": "~/bin/opencode-globex"}},
+            "cur": {"driver": "cursor", "displayName": "Cursor", "enabled": True},
         }, [P("Projects", "acme", "a1"), P("Projects", "globex", "g1"), P("scratch")])
+        write(os.path.join(CFG, "wrappers.tsv"), "~/bin/opencode-globex\tglobex\n")
         os.makedirs(P(".t3claude-globex"), exist_ok=True)
         write(P(".t3claude-globex", ".claude.json"), json.dumps({"oauthAccount": {"emailAddress": "me@globex.example"}}))
         write(P(".claude", "settings.json"), json.dumps({"hooks": {
@@ -273,21 +277,29 @@ class T3Check(unittest.TestCase):
         self.assertIn("UNGUARDED", acme)
         self.assertIn("~/Projects/globex/g1", acme)
         self.assertIn("NOT blocked", acme)
-        gx = out.split("Codex Globex")[1].split("Codex Odd")[0]
+        gx = out.split("Codex Globex")[1].split("\nCursor")[0]
         self.assertIn("t3-codex guard", gx)
         self.assertIn("~/Projects/acme/a1", gx)
         self.assertNotIn("WARN", gx)
         self.assertIn("-> UNKNOWN", out.split("Codex Odd")[1])
-        self.assertNotIn("OpenCode", out)
+        oc = out.split("OpenCode (opencode, enabled)")[1].split("OpenCode Globex")[0]
+        self.assertIn("unmapped, unmetered", oc)
+        self.assertIn("UNGUARDED", oc)
+        ocg = out.split("OpenCode Globex (opencode, enabled)")[1].split("\nC")[0]
+        self.assertIn("account: globex", ocg)
+        self.assertIn("~/Projects/acme/a1", ocg)
+        cur = out.split("Cursor (cursor, enabled)")[1].split("\nOpenCode")[0]
+        self.assertIn("unmapped (in-process Cursor SDK", cur)
+        self.assertIn("can open all 2 T3 project folder(s)", cur)
         self.assertNotIn("gone", out)                              # deleted project
-        self.assertIn("2 warning(s)", out)                         # hook missing + unguarded codex
+        self.assertIn("5 warning(s)", out)   # hook missing, unguarded codex, 2 OpenCode, Cursor
         after = {f: read(os.path.join(self.t3, "userdata", f), "rb") for f in before}
         self.assertEqual(before, after)
         self.assertFalse(os.path.exists(os.path.join(self.t3, "userdata", "statev2.sqlite-wal")))
 
     def test_summary_and_dirs(self):
         r = self.check("--summary")
-        self.assertIn("4 enabled Claude/Codex instance(s), 2 warning(s)", r.stdout)
+        self.assertIn("7 enabled provider instance(s), 5 warning(s)", r.stdout)
         r = run([sys.executable, "-I", os.path.join(SRC, "llm_profile.py"), "t3-claude-dirs"],
                 env=env(LLM_PROFILES_T3_DIR=self.t3))
         self.assertEqual(r.stdout.split(), [P(".claude"), P(".t3claude-globex")])

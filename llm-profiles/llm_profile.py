@@ -316,7 +316,16 @@ def cmd_crew_env(directory):
 # ---------------------------------------------------------------- T3 Code (read-only report)
 
 HOOK_CMD = "python3 -I $HOME/.config/llm-profiles/llm_profile.py hook"
-T3_DRIVERS = {"claudeAgent": "claude", "codex": "codex"}
+T3_DRIVERS = {"claudeAgent": "claude", "codex": "codex", "opencode": "opencode", "cursor": "cursor"}
+
+
+def wrappers():
+    """Optional wrappers.tsv: launcher path -> profile, for T3 instances (e.g. OpenCode) whose
+    binaryPath is a per-account wrapper of yours. {realpath: profile}."""
+    try:
+        return {os.path.realpath(os.path.expanduser(r[0])): r[1] for r in _rows("wrappers.tsv") if len(r) >= 2}
+    except FileNotFoundError:
+        return {}
 
 
 def t3_dir():
@@ -324,7 +333,7 @@ def t3_dir():
 
 
 def t3_instances():
-    """[(id, tool, instance)] for T3's Claude and Codex provider instances, or None if T3
+    """[(id, tool, instance)] for T3's Claude, Codex, OpenCode and Cursor instances, or None if T3
     has no settings file."""
     path = os.path.join(t3_dir(), "userdata", "settings.json")
     try:
@@ -403,18 +412,24 @@ def t3_projects():
 
 
 def cmd_t3_check(summary=False):
-    """Report T3 Code's Claude/Codex instances against profiles.tsv and folders.tsv. Read-only."""
+    """Report T3 Code's provider instances against profiles.tsv and folders.tsv. Read-only."""
     inst = t3_instances()
     if inst is None:
         if not summary:
             print("t3      : no T3 settings at %s" % short(os.path.join(t3_dir(), "userdata", "settings.json")))
         return 0
     profs = profiles()
+    wraps = wrappers()
     projects, why = t3_projects()
+    restricted = [r for r in projects if rule_for(r)]
     warns, lines = 0, []
     for key, tool, i in sorted(inst, key=lambda x: (not x[2].get("enabled", True), x[0])):
         enabled = i.get("enabled", True)
         cfg = i.get("config") or {}
+        if tool in ("opencode", "cursor"):
+            n, issues = other_instance(key, tool, i, cfg, wraps, projects, restricted, lines)
+            warns += n if enabled else 0
+            continue
         home = t3_home(tool, i)
         prof = profile_of_dir(tool, home, profs)
         label = "%s (%s, %s)" % (i.get("displayName") or key, tool, "enabled" if enabled else "disabled")
@@ -458,12 +473,48 @@ def cmd_t3_check(summary=False):
         lines.append("projects: unreadable (%s)" % why)
     if summary:
         n = sum(1 for _, _, i in inst if i.get("enabled", True))
-        print("t3      : %d enabled Claude/Codex instance(s), %s" % (
+        print("t3      : %d enabled provider instance(s), %s" % (
             n, "%d warning(s): run llm_profile.py t3-check" % warns if warns else "no warnings"))
     else:
         print("\n".join(lines))
         print("t3      : %s" % ("%d warning(s) on enabled instances" % warns if warns else "no warnings on enabled instances"))
     return 1 if warns else 0
+
+
+def other_instance(key, tool, i, cfg, wraps, projects, restricted, lines):
+    """OpenCode / Cursor: paddock has no guard for either. Returns (warning count, issues).
+
+    OpenCode maps to a profile only when its binaryPath is listed in wrappers.tsv; otherwise
+    it is unmapped (and unmetered by paddock). Cursor runs in T3's own process through the
+    Cursor SDK, signed in through the keychain or CURSOR_API_KEY, with no per-instance config
+    dir or binary, so its account cannot be read and no wrapper or hook can see its folders."""
+    enabled = i.get("enabled", True)
+    lines.append("%s (%s, %s)" % (i.get("displayName") or key, tool, "enabled" if enabled else "disabled"))
+    binary = os.path.expanduser(cfg.get("binaryPath") or "")
+    prof = wraps.get(os.path.realpath(binary)) if (tool == "opencode" and binary) else None
+    if tool == "cursor":
+        lines.append("  account: unmapped (in-process Cursor SDK; sign-in is T3's, not a config dir)")
+    elif prof:
+        lines.append("  account: %s (binaryPath %s is in wrappers.tsv)" % (prof, short(binary)))
+    else:
+        lines.append("  account: unmapped, unmetered (binaryPath %s is not in wrappers.tsv)"
+                     % (short(binary) if binary else "default"))
+    lines.append("  guard  : UNGUARDED (paddock has no guard for %s)" % tool)
+    issues = []
+    if prof:
+        denied = [r for r in restricted if prof not in rule_for(r)[1]]
+        if denied:
+            lines.append("  not allowed in %d T3 project folder(s) (NOT blocked):" % len(denied))
+            lines += ["           %s" % short(r) for r in denied[:12]]
+            if len(denied) > 12:
+                lines.append("           ... and %d more" % (len(denied) - 12))
+            issues.append("unguarded %s can open folders its account may not use" % tool)
+    elif restricted:
+        lines.append("  can open all %d T3 project folder(s) that have a rule; none are checked" % len(restricted))
+        issues.append("unguarded, unmapped %s: open only projects its account may use" % tool)
+    for msg in issues:
+        lines.append("  WARN   : " + msg)
+    return len(issues), issues
 
 
 def cmd_t3_claude_dirs():
