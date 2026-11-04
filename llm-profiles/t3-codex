@@ -1,0 +1,4 @@
+#!/bin/sh
+# Paddock's folder guard for Codex in T3 Code: set a Codex provider instance's binaryPath to
+# this file (e.g. ~/.config/llm-profiles/t3-codex). See codex_guard.py.
+exec /usr/bin/env python3 -I "$(dirname "$0")/codex_guard.py" "$@"
