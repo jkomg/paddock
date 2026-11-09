@@ -8,5 +8,4 @@ model runtimes. Third-party applications and model providers are not included an
 remain subject to their own terms. Use only the AI resources your organisation has
 approved.
 
-No license file has been added to this repository yet. Until one is, ordinary
-copyright applies.
+Paddock is released under the MIT license, and the full text is in LICENSE.

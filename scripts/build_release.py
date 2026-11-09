@@ -10,7 +10,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 't3'
 SKILL_FILES = runpy.run_path(str(SOURCE / 'install.py'))['FILES']
-BASE_FILES = ('VERSION', 'NOTICE.txt', 'QUICKSTART.md', 'VALIDATION.md', 'install.py', 'install.ps1', 'install.sh',
+BASE_FILES = ('VERSION', 'NOTICE.txt', 'LICENSE', 'QUICKSTART.md', 'VALIDATION.md', 'install.py', 'install.ps1', 'install.sh',
               'tests/test_package.py', 'workflow.png', 'workflow.svg')
 
 
@@ -19,7 +19,7 @@ def build(output):
     output.mkdir(parents=True, exist_ok=True)
     artifacts = []
     for kind in ('installer', 'skill'):
-        names = list(BASE_FILES) if kind == 'installer' else ['NOTICE.txt', 'VERSION']
+        names = list(BASE_FILES) if kind == 'installer' else ['NOTICE.txt', 'LICENSE', 'VERSION']
         names += ['skills/paddock-crew/' + f for f in SKILL_FILES]
         entries = {}
         for name in names:

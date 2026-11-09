@@ -36,6 +36,13 @@ def crew():
 
 
 class Package(unittest.TestCase):
+    def test_license_matches_root_and_ships_in_releases(self):
+        license_path = ROOT / 'LICENSE'
+        self.assertTrue(license_path.read_text(encoding='utf-8').startswith('MIT License'))
+        repo_license = ROOT.parent / 'LICENSE'
+        if repo_license.exists():
+            self.assertEqual(license_path.read_bytes(), repo_license.read_bytes())
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory(prefix='paddock test ')
         self.addCleanup(self.tmp.cleanup)

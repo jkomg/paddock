@@ -252,3 +252,7 @@ model or dispatch paid work.
 - Every project lead is a full Claude session that spends that account's tokens.
 - A linked git worktree follows its main repo's folder rule (see the T3 Code section). A
   plain copy of a repo does not.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
