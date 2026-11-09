@@ -93,7 +93,8 @@ class PortableInstall(unittest.TestCase):
 
     def test_stale_interpreter_is_reported_and_replaced(self):
         self.settings.parent.mkdir()
-        stale = shlex.join(["/gone/python3.9", "-I", str(self.cfg / "llm_profile.py"), "hook"])
+        parts = ["/gone/python3.9", "-I", str(self.cfg / "llm_profile.py"), "hook"]
+        stale = subprocess.list2cmdline(parts) if os.name == "nt" else shlex.join(parts)
         self.settings.write_text(json.dumps({"hooks": {ev: [{"hooks": [{"type": "command", "command": stale}]}]
                                                        for ev in ("SessionStart", "PreToolUse")}}))
         probe = ("import sys; sys.path.insert(0, sys.argv[1]); import llm_profile as lp; "
@@ -107,6 +108,17 @@ class PortableInstall(unittest.TestCase):
         self.assertNotIn(stale, commands)
         self.assertEqual(len(commands), 2)
         self.assertEqual(check(), "True")
+
+    def test_hook_recognised_with_either_quoting(self):
+        probe = ("import sys; sys.path.insert(0, sys.argv[1]); import llm_profile as lp; "
+                 "print(lp.hook_command_parts(sys.argv[2]) is not None)")
+        for quote in ("'", '"'):
+            with self.subTest(quote=quote):
+                command = f"python3 -I {quote}{self.cfg / 'llm_profile.py'}{quote} hook"
+                r = subprocess.run([sys.executable, "-I", "-c", probe, str(self.cfg), command],
+                                   env=self.e, capture_output=True, text=True, timeout=15)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(r.stdout.strip(), "True", command)
 
     @unittest.skipUnless(os.name != "nt" and shutil.which("zsh"), "requires native zsh")
     def test_hook_and_shell_name_the_stable_link(self):

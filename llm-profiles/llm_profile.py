@@ -356,7 +356,7 @@ def hook_command_parts(cmd):
         parts = shlex.split(cmd or "", posix=os.name != "nt")
     except ValueError:
         return None
-    parts = [p.strip('"') for p in parts]
+    parts = [p.strip('"\'') for p in parts]
     if len(parts) == 4 and parts[1] == "-I" and parts[3] == "hook" and os.path.basename(parts[2]) == "llm_profile.py":
         return parts[:1] + parts[2:3]
     return None
