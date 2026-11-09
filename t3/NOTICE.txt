@@ -1,0 +1,12 @@
+Paddock T3 Crew — public preview
+
+This is a preview. It may change without notice and has not been validated on every
+platform; see VALIDATION.md for what has and has not actually run.
+
+The package contains no credentials, provider logins, company-specific bindings or
+model runtimes. Third-party applications and model providers are not included and
+remain subject to their own terms. Use only the AI resources your organisation has
+approved.
+
+No license file has been added to this repository yet. Until one is, ordinary
+copyright applies.
