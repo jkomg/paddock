@@ -1,5 +1,6 @@
 """Portable negative-path tests. No provider calls or paid model work."""
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 CLI = ROOT / 'skills/paddock-crew/scripts/paddock.py'
@@ -36,6 +38,39 @@ def crew():
 
 
 class Package(unittest.TestCase):
+    def test_atomic_write_retries_while_target_is_briefly_locked(self):
+        spec = importlib.util.spec_from_file_location('paddock_cli', CLI)
+        cli = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cli)
+        target = self.base / 'verification.json'
+        target.write_bytes(b'old content')
+        real_replace = cli.os.replace
+        calls = 0
+
+        def briefly_locked(src, dst):
+            nonlocal calls
+            calls += 1
+            if calls <= 2:
+                raise PermissionError('target is locked')
+            return real_replace(src, dst)
+
+        with mock.patch.object(cli.os, 'replace', side_effect=briefly_locked), \
+                mock.patch.object(cli.time, 'sleep', return_value=None):
+            cli.write_atomic(target, b'new content')
+        self.assertEqual(calls, 3)
+        self.assertEqual(target.read_bytes(), b'new content')
+        self.assertEqual(list(self.base.glob('*.tmp')), [])
+
+        error = PermissionError('target stays locked')
+        with mock.patch.object(cli.os, 'replace', side_effect=error) as replace, \
+                mock.patch.object(cli.time, 'sleep', return_value=None):
+            with self.assertRaises(PermissionError) as raised:
+                cli.write_atomic(target, b'unwritten content')
+        self.assertIs(raised.exception, error)
+        self.assertEqual(replace.call_count, 20)
+        self.assertEqual(target.read_bytes(), b'new content')
+        self.assertEqual(list(self.base.glob('*.tmp')), [])
+
     def test_license_matches_root_and_ships_in_releases(self):
         license_path = ROOT / 'LICENSE'
         self.assertTrue(license_path.read_text(encoding='utf-8').startswith('MIT License'))

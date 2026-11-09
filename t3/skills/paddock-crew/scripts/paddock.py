@@ -11,6 +11,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import time
 import uuid
 
 VERSION = "0.1.0-preview"
@@ -49,7 +50,16 @@ def write_atomic(path, content):
             f.write(content)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        delay = 0.01
+        for attempt in range(20):
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError:
+                if attempt == 19:
+                    raise
+                time.sleep(delay)
+                delay = min(delay * 2, 0.25)
     finally:
         if tmp.exists():
             tmp.unlink()
