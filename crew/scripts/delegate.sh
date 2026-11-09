@@ -16,6 +16,7 @@ crew_has "$WORKER" || { echo "delegate: the $CREW_ACCOUNT crew has no '$WORKER' 
 # Run log: one JSON line per delegation in this account's usage ledger folder, joined to
 # ledger events by worker source + project + time window. Read by `run.py report --profile`.
 RUNS="$TF_PROFILES/$CREW_LEDGER/runs.jsonl"
+mkdir -p "$(dirname "$RUNS")"
 START=$(date -u +%Y-%m-%dT%H:%M:%SZ); RUN_ID=""; RUN_PROJECT=""
 LEAD_SESSION=$(herdr pane current --current 2>/dev/null | python3 -I -c 'import json,sys; print((json.load(sys.stdin)["result"]["pane"].get("agent_session") or {}).get("value",""))' 2>/dev/null || true)
 log_run() {
@@ -47,6 +48,30 @@ fi
 AGENT=$(crew_name "$WORKER")   # herdr name of this account's worker in this Space
 CWD=$(herdr agent get "$AGENT" | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["result"]["agent"]["cwd"])') \
   || { echo "delegate: worker '$AGENT' not live; run crew-up.sh" >&2; exit 1; }
+
+# qwen is a local model at ~40-50 tok/s that averages ~600 output tokens a call. Every
+# qwen failure after the LM Studio switch (Oct-Nov 2026) was an oversized task: a ~20-doc
+# read, and a 52-line brief to edit 3 files and write a test suite, which needed far more
+# output than fits a 5-minute budget. Refuse those up front (exit 6) so the lead routes
+# them to gemini (large reads) or codex (multi-file work). CREW_QWEN_FORCE=1 overrides.
+if [ "$WORKER" = qwen ] && [ "${CREW_QWEN_FORCE:-0}" != 1 ]; then
+  SIZE=$(python3 -I - "$BRIEF" "$CWD" <<'PY'
+import os, re, sys
+brief, root = open(sys.argv[1]).read(), sys.argv[2]
+paths = {p.rstrip('.,:;)`') for p in re.findall(r'[\w./~-]+\.[A-Za-z]{1,5}\b|[\w-]+/[\w./-]+', brief)}
+files = [p for p in paths if os.path.isfile(os.path.join(root, os.path.expanduser(p)))]
+print(len(brief.splitlines()), len(files), sum(os.path.getsize(os.path.join(root, os.path.expanduser(p))) for p in files))
+PY
+)
+  read -r B_LINES B_FILES B_BYTES <<< "$SIZE"
+  if [ "$B_LINES" -gt 45 ] || [ "$B_FILES" -gt 4 ] || [ "$B_BYTES" -gt 61440 ]; then
+    echo "delegate: brief too big for qwen ($B_LINES lines, $B_FILES files, $((B_BYTES/1024)) KB to read;" \
+         "limits 45 / 4 / 60 KB). Split it, or send large reads to gemini and multi-file work to codex." \
+         "CREW_QWEN_FORCE=1 overrides." >&2
+    exit 6
+  fi
+fi
+
 
 ID=$(date +%Y%m%d-%H%M%S)-$AGENT; REL=".handoffs/$ID"; DIR="$CWD/$REL"; mkdir -p "$DIR"
 RUN_ID=$ID; RUN_PROJECT=$(basename "$CWD")
