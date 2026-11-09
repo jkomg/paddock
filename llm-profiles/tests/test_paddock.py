@@ -199,6 +199,33 @@ class Worktrees(unittest.TestCase):
 # ------------------------------------------------------------------ profiles
 
 class Profiles(unittest.TestCase):
+    def test_secondary_directory_login_is_checked(self):
+        path = P(".t3claude-globex", ".claude.json")
+        previous = read(path) if os.path.exists(path) else None
+        try:
+            write(path, json.dumps({"oauthAccount": {"emailAddress": "wrong@acme.example"}}))
+            r = run([sys.executable, os.path.join(SRC, "llm_profile.py"), "resolve", "claude",
+                     P("Projects", "joint")], env=env(CLAUDE_CONFIG_DIR=P(".t3claude-globex")))
+            self.assertEqual(r.returncode, 3)
+            self.assertIn("not a globex login", r.stderr)
+        finally:
+            if previous is None:
+                os.remove(path)
+            else:
+                write(path, previous)
+
+    @unittest.skipUnless(shutil.which("zsh"), "zsh not installed")
+    def test_shell_preserves_secondary_directory(self):
+        bindir = os.path.join(SANDBOX, "shell-bin")
+        write(os.path.join(bindir, "claude"), '#!/bin/sh\nprintf "%s\\n" "$CLAUDE_CONFIG_DIR"\n')
+        os.chmod(os.path.join(bindir, "claude"), 0o755)
+        r = run(["zsh", "-f", "-c", 'source "$1"; cd "$2"; claude', "test",
+                 os.path.join(SRC, "llm-profile.zsh"), P("Projects", "joint")],
+                env=env(CLAUDE_CONFIG_DIR=P(".t3claude-globex"),
+                        PATH=bindir + os.pathsep + os.environ["PATH"]))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip(), P(".t3claude-globex"))
+
     def test_multi_dir_claude_column(self):
         g = lp.profiles()["globex"]
         self.assertEqual(g["claude"], P(".claude-globex"))
@@ -211,7 +238,7 @@ class Profiles(unittest.TestCase):
         os.makedirs(P(".t3claude-globex"), exist_ok=True)
         r = run([sys.executable, "-I", os.path.join(SRC, "llm_profile.py"), "resolve", "claude",
                  P("Projects", "joint")], env=env(CLAUDE_CONFIG_DIR=P(".t3claude-globex")))
-        self.assertEqual((r.returncode, r.stdout.strip()), (0, P(".claude-globex")))
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, P(".t3claude-globex")))
 
     def test_old_single_dir_rows_still_work(self):
         self.assertEqual(lp.profiles()["personal"]["claude_dirs"], [P(".claude-personal")])
@@ -236,6 +263,57 @@ def make_t3(root, instances, projects):
 
 
 class T3Check(unittest.TestCase):
+    def only_codex(self):
+        make_t3(self.t3, {"codex": {"driver": "codex", "enabled": True,
+                "config": {"homePath": "~/.codex", "binaryPath": os.path.join(SRC, "t3-codex")}}},
+                [P("Projects", "acme")])
+
+    def test_unrecognised_email_is_not_directory_identity(self):
+        self.only_codex()
+        path = P(".codex", "auth.json")
+        previous = read(path)
+        try:
+            write(path, json.dumps({"tokens": {"id_token": jwt("stranger@example.net")}}))
+            r = self.check()
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("not recognised", r.stdout)
+            self.assertIn("not allowed in 1", r.stdout)
+        finally:
+            write(path, previous)
+
+    def test_unknown_login_warns(self):
+        self.only_codex()
+        path = P(".codex", "auth.json")
+        previous = read(path)
+        try:
+            write(path, "{}")
+            r = self.check("--summary")
+            self.assertEqual(r.returncode, 1)
+            self.assertNotIn("no warnings", r.stdout)
+        finally:
+            write(path, previous)
+
+    def test_missing_or_corrupt_database_warns_in_summary(self):
+        self.only_codex()
+        path = os.path.join(self.t3, "userdata", "statev2.sqlite")
+        os.remove(path)
+        for content in (None, "not a database"):
+            if content:
+                write(path, content)
+            r = self.check("--summary")
+            self.assertEqual(r.returncode, 1, r.stdout)
+            self.assertIn("1 warning(s)", r.stdout)
+
+    def test_missing_worktree_table_is_incomplete(self):
+        self.only_codex()
+        con = sqlite3.connect(os.path.join(self.t3, "userdata", "statev2.sqlite"))
+        con.execute("DROP TABLE projection_threads")
+        con.commit()
+        con.close()
+        r = self.check()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("project coverage incomplete", r.stdout)
+
     def setUp(self):
         self.t3 = os.path.join(SANDBOX, "t3-%s" % self._testMethodName)
         guard = os.path.join(SRC, "t3-codex")
@@ -332,7 +410,7 @@ class Install(unittest.TestCase):
         home = os.path.join(SANDBOX, "ihome")
         cfg = os.path.join(home, ".config", "llm-profiles")
         os.makedirs(cfg, exist_ok=True)
-        for f in ("llm_profile.py", "llm-profile.zsh", "install.sh"):
+        for f in ("llm_profile.py", "llm-profile.zsh", "install.sh", "install.py"):
             shutil.copy(os.path.join(SRC, f), cfg)
         write(os.path.join(cfg, "profiles.tsv"), "acme\t@acme.example\t~/.claude-acme\t~/.codex\n")
         write(os.path.join(cfg, "folders.tsv"), "~/Projects/acme\tacme\tacme\n")

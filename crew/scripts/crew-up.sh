@@ -35,10 +35,15 @@ LIVE=" $(live) "
 # CREW_QWEN_BACKEND=ollama uses the Ollama *-crew variant instead. Declared limits let
 # OpenCode compact before the window overflows; X-TF-* headers attribute gateway events to
 # this account's ledger and this project.
+if crew_has qwen; then
 QWEN_BACKEND="${CREW_QWEN_BACKEND:-lmstudio}"
 if [ "$QWEN_BACKEND" = lmstudio ]; then
   QWEN_MODEL="${CREW_QWEN_MODEL:-lmstudio/qwen36-mlx}"
   QWEN_URL="$GATEWAY/lmstudio/v1"
+  # 64K was sized for Ollama. A real task reached 42K input by its 9th call (OpenCode's own
+  # prompt is ~15K), and OpenCode compacts at the limit declared here, so 64K left little
+  # room. Weights plus context cache can exhaust RAM: lower CREW_QWEN_CTX on smaller machines.
+  QWEN_CTX="${CREW_QWEN_CTX:-131072}"
   # Load explicitly: an on-demand (JIT) load would use LM Studio's small default context.
   if crew_has qwen && ! lms ps 2>/dev/null | grep -q "^${QWEN_MODEL#*/} "; then
     echo "qwen: loading ${CREW_LMSTUDIO_SOURCE:-qwen/qwen3.6-35b-a3b} into LM Studio as ${QWEN_MODEL#*/}"
@@ -59,6 +64,7 @@ if provider == "lmstudio":
 print(json.dumps({"model": sys.argv[1], "share": "disabled", "providers": {provider: p},
  "policies": [{"action":"provider.use","resource":"*","effect":"deny"},
               {"action":"provider.use","resource":provider,"effect":"allow"}]}))' "$QWEN_MODEL" "$QWEN_URL" "$PROJECT" "$QWEN_CTX" "$QWEN_OUT" "$CREW_LEDGER")
+fi
 
 # Reuse an existing "crew" tab in this workspace; ROOT is its first pane.
 TAB=$(herdr tab list --workspace "$HERDR_WORKSPACE_ID" | jget 'next((t["tab_id"] for t in d["result"]["tabs"] if t.get("label")=="crew"), "")')
@@ -84,8 +90,10 @@ start() { # name kind direction env... -- agent-args...
 # QWEN_CFG) and mixes crew sessions with other orgs' history. Each account gets its own data
 # and state dirs so session history never crosses accounts. Config dir stays shared so the
 # herdr state plugin in ~/.config/opencode/plugins still loads.
+if crew_has qwen; then
 CREW_OC="${CREW_OPENCODE_ROOT:-$HOME/.local/share/token-factory/opencode-crew}/$CREW_ACCOUNT"; mkdir -p "$CREW_OC/data" "$CREW_OC/state"
 crew_has qwen   && start "$(crew_name qwen)"   opencode right "OPENCODE_CONFIG_CONTENT=$QWEN_CFG" "XDG_DATA_HOME=$CREW_OC/data" "XDG_STATE_HOME=$CREW_OC/state" -- --standalone
+fi
 crew_has gemini && start "$(crew_name gemini)" agy      right -- --mode accept-edits
 crew_has codex  && start "$(crew_name codex)"  codex    down  "CODEX_HOME=$CREW_CODEX_HOME" -- --sandbox workspace-write --ask-for-approval on-request
 herdr agent list | python3 -I -c 'import json,sys

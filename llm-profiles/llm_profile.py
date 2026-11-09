@@ -19,6 +19,10 @@ import json
 import os
 import re
 import sys
+import shlex
+import shutil
+import subprocess
+from pathlib import Path
 
 HERE = os.environ.get("LLM_PROFILES_DIR") or os.path.dirname(os.path.abspath(__file__))
 HOME = os.path.expanduser("~")
@@ -26,7 +30,7 @@ PROJECTS = os.path.join(HOME, "Projects")
 
 
 def _rows(name):
-    with open(os.path.join(HERE, name)) as f:
+    with open(os.path.join(HERE, name), encoding="utf-8-sig") as f:
         for line in f:
             line = line.rstrip("\n")
             if line.strip() and not line.lstrip().startswith("#"):
@@ -57,7 +61,7 @@ def claude_dir_path(d):
 
 
 def same_dir(a, b):
-    return os.path.realpath(os.path.expanduser(a)) == os.path.realpath(os.path.expanduser(b))
+    return os.path.normcase(os.path.realpath(os.path.expanduser(a))) == os.path.normcase(os.path.realpath(os.path.expanduser(b)))
 
 
 def cmd_names():
@@ -82,13 +86,13 @@ def cmd_claude_dirs():
 def folders():
     rows = []
     for folder, allowed, default in _rows("folders.tsv"):
-        rows.append((os.path.realpath(os.path.expanduser(folder)), allowed.split(","), default))
+        rows.append((os.path.normcase(os.path.realpath(os.path.expanduser(folder))), allowed.split(","), default))
     return sorted(rows, key=lambda r: len(r[0]), reverse=True)
 
 
 def _location_rule(p):
     for folder, allowed, default in folders():
-        if p == folder or p.startswith(folder + os.sep):
+        if p == folder or p.startswith(folder.rstrip(os.sep) + os.sep):
             return folder, allowed, default
     return None
 
@@ -140,10 +144,10 @@ def rule_for(path):
 
     A path inside a linked git worktree (T3 Code, `git worktree add`, ...) also gets the rule
     of its main repo's folder. If both places have a rule, a login must be allowed by both."""
-    p = os.path.realpath(os.path.expanduser(path))
+    p = os.path.normcase(os.path.realpath(os.path.expanduser(path)))
     own = _location_rule(p)
     main = worktree_main(p)
-    main_rule = _location_rule(main) if main else None
+    main_rule = _location_rule(os.path.normcase(main)) if main else None
     if main_rule is None or main_rule == own:
         return own
     if own is None:
@@ -234,6 +238,11 @@ def cmd_resolve(tool, directory, explicit=""):
         return fail("%s is a %s folder; the %s login is not allowed here (allowed: %s)"
                     % (short(folder), "/".join(allowed), chosen, ", ".join(allowed)))
     target = profs[chosen][tool]
+    # Keep the actual configured directory, including secondary dirs and equivalent paths.
+    # Validate its login, not the primary directory's login.
+    current = os.environ.get("CLAUDE_CONFIG_DIR" if tool == "claude" else "CODEX_HOME")
+    if current and env_profile(tool, profs) == chosen:
+        target = current
     email = claude_email(target) if tool == "claude" else codex_email(target)
     if email and profile_of_email(email) != chosen:
         return fail("%s profile at %s is signed in as %s, not a %s login"
@@ -315,7 +324,51 @@ def cmd_crew_env(directory):
 
 # ---------------------------------------------------------------- T3 Code (read-only report)
 
-HOOK_CMD = "python3 -I $HOME/.config/llm-profiles/llm_profile.py hook"
+LEGACY_HOOK_CMD = "python3 -I $HOME/.config/llm-profiles/llm_profile.py hook"
+# A hook that cannot start is a non-blocking error in Claude Code: the tool call goes ahead
+# and the guard is silently off. So the interpreter must outlive Python upgrades. POSIX
+# uses `python3` from PATH (Homebrew's versioned interpreter paths vanish on upgrade).
+# Windows GUI apps have no reliable `python3`, so it keeps the absolute interpreter,
+# quoted for cmd.exe; t3-check reports it missing after a Python change.
+HOOK_PY = sys.executable if os.name == "nt" else "python3"
+# The script path must outlive a moved checkout for the same reason. The documented setup
+# links ~/.config/llm-profiles to the checkout; when that link reaches this file, name the
+# link, so moving the checkout needs only the link updated. Otherwise name the real path.
+STABLE_DIR = os.path.join(HOME, ".config", "llm-profiles")
+
+
+def stable_path(name):
+    """`name` beside this file, through ~/.config/llm-profiles when that link reaches it."""
+    real = os.path.join(os.path.dirname(os.path.realpath(__file__)), name)
+    link = os.path.join(STABLE_DIR, name)
+    return link if os.path.realpath(link) == os.path.realpath(real) else real
+
+
+HOOK_ARGS = [HOOK_PY, "-I", stable_path("llm_profile.py"), "hook"]
+HOOK_CMD = subprocess.list2cmdline(HOOK_ARGS) if os.name == "nt" else shlex.join(HOOK_ARGS)
+
+
+def hook_command_parts(cmd):
+    """The [python, script] of a Paddock hook command, in any form an install wrote, or None."""
+    if cmd == LEGACY_HOOK_CMD:
+        return ["python3", os.path.join(HOME, ".config", "llm-profiles", "llm_profile.py")]
+    try:
+        parts = shlex.split(cmd or "", posix=os.name != "nt")
+    except ValueError:
+        return None
+    parts = [p.strip('"\'') for p in parts]
+    if len(parts) == 4 and parts[1] == "-I" and parts[3] == "hook" and os.path.basename(parts[2]) == "llm_profile.py":
+        return parts[:1] + parts[2:3]
+    return None
+
+
+def hook_command_runs(cmd):
+    """True when the hook's interpreter and script both exist, so the guard can start."""
+    parts = hook_command_parts(cmd)
+    if not parts:
+        return False
+    py = parts[0] if os.path.isabs(parts[0]) else shutil.which(parts[0])
+    return bool(py) and os.path.isfile(py) and os.path.isfile(parts[1])
 T3_DRIVERS = {"claudeAgent": "claude", "codex": "codex", "opencode": "opencode", "cursor": "cursor",
               "antigravity": "antigravity"}
 
@@ -370,12 +423,13 @@ def profile_of_dir(tool, home, profs):
 
 
 def hook_installed(claude_dir):
+    """True only when both hooks are present and their command can actually start."""
     try:
-        with open(os.path.join(claude_dir_path(claude_dir), "settings.json")) as f:
+        with open(os.path.join(claude_dir_path(claude_dir), "settings.json"), encoding="utf-8-sig") as f:
             hooks = json.load(f).get("hooks") or {}
     except (OSError, ValueError):
         return False
-    has = lambda ev: any(h.get("command") == HOOK_CMD for e in hooks.get(ev, []) for h in e.get("hooks", []))
+    has = lambda ev: any(hook_command_runs(h.get("command")) for e in hooks.get(ev, []) for h in e.get("hooks", []))
     return has("SessionStart") and has("PreToolUse")
 
 
@@ -387,7 +441,7 @@ def codex_guard_kind(binary):
     if not b:
         return None
     real = os.path.realpath(b)
-    if os.path.basename(real) == "t3-codex":
+    if os.path.isfile(real) and os.path.basename(real) == "t3-codex":
         return "t3-codex"
     try:
         if not os.path.isfile(real) or os.path.getsize(real) > 65536:
@@ -415,7 +469,7 @@ def t3_projects():
         if not os.path.exists(path):
             continue
         try:
-            con = sqlite3.connect("file:%s?mode=ro" % path, uri=True, timeout=2)
+            con = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True, timeout=2)
             try:
                 rows = con.execute("SELECT title, workspace_root FROM projection_projects "
                                    "WHERE deleted_at IS NULL").fetchall()
@@ -423,11 +477,11 @@ def t3_projects():
                     rows += con.execute("SELECT DISTINCT t.title, t.worktree_path FROM projection_threads t "
                                         "WHERE t.deleted_at IS NULL AND t.worktree_path IS NOT NULL "
                                         "AND t.worktree_path != ''").fetchall()
-                except sqlite3.Error:
-                    pass
+                except sqlite3.Error as e:
+                    errors.append("cannot read thread worktrees: %s" % e)
             finally:
                 con.close()
-            return sorted(set(os.path.realpath(r) for _, r in rows if r)), None
+            return sorted(set(os.path.realpath(r) for _, r in rows if r)), "; ".join(errors) or None
         except sqlite3.Error as e:
             errors.append("%s: %s" % (name, e))
     return [], "; ".join(errors) or "no T3 state database found"
@@ -463,12 +517,16 @@ def cmd_t3_check(summary=False):
         issues = []
         if not prof:
             issues.append("config dir is not in profiles.tsv")
-        elif login and login != prof:
+        if not email:
+            issues.append("login cannot be verified; sign in and rerun t3-check")
+        elif not login:
+            issues.append("signed-in email %s is not recognised by profiles.tsv" % email)
+        elif prof and login != prof:
             issues.append("signed in as %s (%s), not %s" % (email, login, prof))
         if tool == "claude":
-            guard = "hook installed" if hook_installed(home) else "NO HOOK (run install.sh)"
+            guard = "hook installed" if hook_installed(home) else "NO HOOK, or its Python is missing (run install.py)"
             if not hook_installed(home):
-                issues.append("Claude hook missing in this config dir")
+                issues.append("Claude hook missing or cannot start in this config dir")
         elif codex_guard_kind(cfg.get("binaryPath")) == "t3-codex":
             guard = "t3-codex guard"
         elif codex_guard_kind(cfg.get("binaryPath")) == "launcher":
@@ -478,8 +536,9 @@ def cmd_t3_check(summary=False):
                 short(os.path.expanduser(cfg["binaryPath"])) if cfg.get("binaryPath") else "unset")
         lines.append("  dir    : %s -> %s, login %s" % (shown, prof or "UNKNOWN", email or "unknown"))
         lines.append("  guard  : %s" % guard)
-        # The guards judge by the signed-in login; fall back to the dir's profile when signed out.
-        acct = login or prof
+        # Match runtime guards: an existing but unrecognised email is never the dir's
+        # account. Only Codex falls back to its configured dir when no email is available.
+        acct = login if email or tool == "claude" else prof
         denied = [r for r in projects if (lambda rule: rule and acct not in rule[1])(rule_for(r))]
         if denied:
             lines.append("  not allowed in %d T3 project folder(s)%s:" % (
@@ -495,14 +554,15 @@ def cmd_t3_check(summary=False):
         if enabled:
             warns += len(issues)
     if why:
-        lines.append("projects: unreadable (%s)" % why)
+        warns += 1
+        lines.append("WARN   : project coverage incomplete (%s)" % why)
     if summary:
         n = sum(1 for _, _, i in inst if i.get("enabled", True))
         print("t3      : %d enabled provider instance(s), %s" % (
             n, "%d warning(s): run llm_profile.py t3-check" % warns if warns else "no warnings"))
     else:
         print("\n".join(lines))
-        print("t3      : %s" % ("%d warning(s) on enabled instances" % warns if warns else "no warnings on enabled instances"))
+        print("t3      : %s" % ("%d warning(s) (enabled instances and project coverage)" % warns if warns else "no warnings on enabled instances"))
     return 1 if warns else 0
 
 

@@ -1,0 +1,46 @@
+name: Checks
+on: [push, pull_request]
+jobs:
+  unix:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install zsh on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y zsh
+      - run: python -m unittest discover -s llm-profiles/tests -v
+      - run: python -m unittest discover -s t3/tests -v
+      - run: python scripts/build_release.py
+      - run: python scripts/check_release.py --test dist/*.zip
+      - name: Shell syntax
+        run: |
+          for f in crew/scripts/*.sh llm-profiles/install.sh; do bash -n "$f"; done
+          zsh -n llm-profiles/llm-profile.zsh
+          sh -n llm-profiles/t3-codex
+          git diff --check
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native installer and hook tests
+        run: python -m unittest discover -s llm-profiles/tests -p test_install_portable.py -v
+
+      - name: Native T3 package and PowerShell tests
+        run: python -m unittest discover -s t3/tests -v
+      - name: Build private archives
+        run: python scripts/build_release.py
+
+      - name: Test extracted Windows archive
+        shell: pwsh
+        run: |
+          $archives = (Get-ChildItem dist/*.zip).FullName
+          python scripts/check_release.py --test @archives

@@ -34,10 +34,10 @@ Machine-specific settings (gateway, ledger root, reviewer command) are in
 
 This opens a `crew` tab with this account's live workers in `<project-dir>`.
 
-- qwen is optional. Only a crew that lists it in `crews.tsv` needs the usage gateway
+- qwen is disabled in the sample crews. Only a crew that lists it in `crews.tsv` needs the usage gateway
   (`CREW_GATEWAY`, default :8741), because qwen's calls go through its `/lmstudio` route.
 - For such a crew it loads `qwen36-mlx` into LM Studio if that model is not loaded (about
-  20 GB of memory).
+  20 GB of model weights, plus context/cache memory).
 - `CREW_QWEN_BACKEND=ollama` falls back to Ollama (`qwen3.6-crew`, 64K context) through
   `/ollama`.
 - It is idempotent.
@@ -82,10 +82,18 @@ skill for its own crew.
 | Task | Worker | Why |
 |---|---|---|
 | Deterministic check (grep, test, lint, build) | **none: run it yourself** | costs no model tokens |
-| Bounded: summarize files/logs, draft tests, boilerplate, first-pass review | `qwen` | local and free; try it first |
+| Bounded: summarize up to ~4 files or a log, one small edit, draft a short test, boilerplate, first-pass review | `qwen` | local and free; try it first |
 | Large context: whole-repo or long-log reading, docs synthesis | `gemini` | big context window; returns a short digest |
-| Implementation or a second opinion on a design or diff | `codex` | different provider from the lead |
+| Implementation across several files, or new code plus its tests; a second opinion on a design or diff | `codex` | different provider from the lead; output budget qwen lacks |
 | Independent final review of a frozen diff or plan | `litellm` | budget-checked; reviewer only |
+
+**qwen's size limit.** qwen generates ~40-50 tok/s and averages ~600 output tokens a call,
+in 128K of context of which OpenCode's own prompt takes ~15K. A task that must write
+thousands of lines of output cannot finish in a 5-minute budget, however well briefed.
+`delegate.sh` refuses a qwen brief over 45 lines, naming more than 4 existing files, or
+pointing at more than 60 KB to read (exit 6), measured relative to the worker's directory; send it straight to gemini or codex and say
+"too big for qwen" as the reason. That counts as the unsuitable local attempt.
+`CREW_QWEN_FORCE=1` overrides when you know better.
 
 Use only the workers `crew-check.sh` lists. When the crew has qwen, escalate only after a
 failed or unsuitable `qwen` attempt, and say why. Doing the task yourself is the better choice when the brief plus

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Paddock Crew"
+  short_description: "T3 crew with code review and evidence adversary"
+  default_prompt: "Use $paddock-crew to onboard this project and coordinate work with verified checks and an independent process adversary."

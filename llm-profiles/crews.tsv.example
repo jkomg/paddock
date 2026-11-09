@@ -4,7 +4,8 @@
 #          codex (that profile's codex-home), gemini (agy; one Google login per machine, so give it
 #          to that login's account only), litellm (budget-checked reviewer; see crew/local.env).
 # ledger: usage ledger folder name under CREW_USAGE_ROOT.
+# qwen is opt-in: add it only after checking available RAM and context needs.
 # profile	workers	ledger
-acme	qwen,codex	acme
-globex	qwen,gemini,codex,litellm	globex
+acme	codex	acme
+globex	gemini,codex,litellm	globex
 personal	codex	personal

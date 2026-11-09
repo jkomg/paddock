@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="2540" viewBox="0 0 1120 2540">
+<title>Paddock: from a query in a new repo to completed work</title>
+<desc>Set the repo account rule, select an allowed login, work directly or through an optional herdr crew, verify, and review. Qwen is optional and off by default in sample crews.</desc>
+<rect width="1120" height="2540" fill="white"/>
+<text x="50" y="52" fill="#172b44" font-family="Arial, sans-serif" font-size="35" font-weight="700" dominant-baseline="central" text-anchor="start">PADDOCK</text>
+<text x="50" y="96" fill="#586b85" font-family="Arial, sans-serif" font-size="27" font-weight="400" dominant-baseline="central" text-anchor="start">From a query in a new repo to completed work</text>
+<rect x="310" y="140" width="500" height="90" rx="18" fill="#ece7ff" stroke="#7762d5" stroke-width="3"/>
+<text x="334" y="174" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">You ask a question in a new repo</text>
+<rect x="30" y="260" width="1040" height="805" rx="24" fill="#f7f9fc" stroke="#cbd5e3" stroke-width="2"/>
+<text x="60" y="302" fill="#586b85" font-family="Arial, sans-serif" font-size="22" font-weight="700" dominant-baseline="central" text-anchor="start">01  REPO OWNERSHIP &amp; LOGIN</text>
+<rect x="165" y="340" width="790" height="130" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="189" y="374" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Give the repo an account rule</text>
+<text x="189" y="413" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Use an existing account folder, or add a rule for this repo.</text>
+<text x="189" y="446" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Manual setup: a repo outside all rules is unrestricted.</text>
+<polyline points="560,230 560,340" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,340 568.0,323.0 552.0,323.0" fill="#45566e"/>
+<polyline points="560,470 560,495 310,495 310,520" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="310,520 318.0,503.0 302.0,503.0" fill="#45566e"/>
+<polyline points="560,495 810,495 810,520" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="810,520 818.0,503.0 802.0,503.0" fill="#45566e"/>
+<rect x="90" y="520" width="440" height="120" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="114" y="554" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Terminal: wrapper chooses</text>
+<text x="114" y="593" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">The folder picks the login.</text>
+<text x="114" y="626" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">An allowed explicit login is kept.</text>
+<rect x="590" y="520" width="440" height="120" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="614" y="554" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">T3: you choose the instance</text>
+<text x="614" y="593" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">One provider instance per account.</text>
+<text x="614" y="626" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Set its home; install its guard.</text>
+<polyline points="310,640 310,670 560,670 560,700" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,700 568.0,683.0 552.0,683.0" fill="#45566e"/>
+<polyline points="810,640 810,670 560,670" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,670 577.0,678.0 577.0,662.0" fill="#45566e"/>
+<polygon points="560,700 750,775 560,850 370,775" fill="#fff4d6" stroke="#d49408" stroke-width="3"/>
+<text x="560" y="759.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">Account allowed</text>
+<text x="560" y="791.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">in this folder?</text>
+<polyline points="750,775 820,775" fill="none" stroke="#c94b38" stroke-width="3"/>
+<polygon points="820,775 803.0,767.0 803.0,783.0" fill="#c94b38"/>
+<text x="776" y="749" fill="#c94b38" font-family="Arial, sans-serif" font-size="22" font-weight="700" dominant-baseline="central" text-anchor="start">No</text>
+<rect x="820" y="710" width="235" height="145" rx="18" fill="#ffebe6" stroke="#c94b38" stroke-width="3"/>
+<text x="844" y="744" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Stop &amp; correct</text>
+<text x="844" y="783" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Select the right</text>
+<text x="844" y="816" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">account; retry.</text>
+<polyline points="560,850 560,905" fill="none" stroke="#23865e" stroke-width="3"/>
+<polygon points="560,905 568.0,888.0 552.0,888.0" fill="#23865e"/>
+<text x="580" y="877" fill="#23865e" font-family="Arial, sans-serif" font-size="22" font-weight="700" dominant-baseline="central" text-anchor="start">Yes</text>
+<rect x="165" y="905" width="790" height="130" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="189" y="939" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Guarded session</text>
+<text x="189" y="978" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Claude: tool hook. T3 Codex: configured proxy.</text>
+<text x="189" y="1011" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Linked worktrees must satisfy both repo and location rules.</text>
+<rect x="30" y="1090" width="1040" height="1320" rx="24" fill="#f7f9fc" stroke="#cbd5e3" stroke-width="2"/>
+<text x="60" y="1124" fill="#586b85" font-family="Arial, sans-serif" font-size="22" font-weight="700" dominant-baseline="central" text-anchor="start">02  WORK &amp; VERIFICATION</text>
+<polyline points="560,1035 560,1150" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,1150 568.0,1133.0 552.0,1133.0" fill="#45566e"/>
+<polygon points="560,1150 750,1225 560,1300 370,1225" fill="#fff4d6" stroke="#d49408" stroke-width="3"/>
+<text x="560" y="1209.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">Use a herdr</text>
+<text x="560" y="1241.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">crew?</text>
+<polyline points="370,1225 310,1225 310,1370" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="310,1370 318.0,1353.0 302.0,1353.0" fill="#45566e"/>
+<text x="115" y="1294" fill="#172b44" font-family="Arial, sans-serif" font-size="24" font-weight="700" dominant-baseline="central" text-anchor="start">No · work directly</text>
+<polyline points="750,1225 810,1225 810,1370" fill="none" stroke="#23865e" stroke-width="3"/>
+<polygon points="810,1370 818.0,1353.0 802.0,1353.0" fill="#23865e"/>
+<text x="835" y="1294" fill="#23865e" font-family="Arial, sans-serif" font-size="24" font-weight="700" dominant-baseline="central" text-anchor="start">Yes</text>
+<rect x="90" y="1370" width="440" height="130" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="114" y="1404" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Work in this session</text>
+<text x="114" y="1443" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">The agent edits and runs checks.</text>
+<text x="114" y="1476" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">A crew is not required.</text>
+<rect x="590" y="1370" width="440" height="130" rx="18" fill="#e3f5eb" stroke="#23865e" stroke-width="3"/>
+<text x="614" y="1404" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Coordinator / project lead</text>
+<text x="614" y="1443" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Same account as the coordinator.</text>
+<text x="614" y="1476" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Writes a bounded task brief.</text>
+<polyline points="810,1500 810,1560" fill="none" stroke="#23865e" stroke-width="3"/>
+<polygon points="810,1560 818.0,1543.0 802.0,1543.0" fill="#23865e"/>
+<rect x="590" y="1560" width="440" height="260" rx="18" fill="#e3f5eb" stroke="#23865e" stroke-width="3"/>
+<text x="614" y="1594" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Use only enabled helpers</text>
+<text x="614" y="1633" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Codex: implementation / review</text>
+<text x="614" y="1666" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Gemini: large reads, if enabled</text>
+<text x="614" y="1699" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">LiteLLM: optional paid reviewer</text>
+<text x="614" y="1732" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Qwen: optional small local tasks</text>
+<text x="614" y="1765" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Qwen is OFF in sample crews.</text>
+<text x="614" y="1798" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Returns result.md + changes.</text>
+<polyline points="310,1500 310,1870 560,1870 560,1910" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,1910 568.0,1893.0 552.0,1893.0" fill="#45566e"/>
+<polyline points="810,1820 810,1870 560,1870" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,1870 577.0,1878.0 577.0,1862.0" fill="#45566e"/>
+<rect x="310" y="1910" width="500" height="115" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="334" y="1944" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Verify the work</text>
+<text x="334" y="1983" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Inspect changes and run relevant tests.</text>
+<polyline points="560,2025 560,2075" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,2075 568.0,2058.0 552.0,2058.0" fill="#45566e"/>
+<polygon points="560,2075 750,2150 560,2225 370,2150" fill="#fff4d6" stroke="#d49408" stroke-width="3"/>
+<text x="560" y="2134.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">You review:</text>
+<text x="560" y="2166.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">Query satisfied?</text>
+<polyline points="750,2150 1090,2150 1090,1225 750,1225" fill="none" stroke="#7762d5" stroke-width="3" stroke-dasharray="11 9"/>
+<polygon points="750,1225 767.0,1233.0 767.0,1217.0" fill="#7762d5"/>
+<text x="808" y="2115" fill="#7762d5" font-family="Arial, sans-serif" font-size="23" font-weight="700" dominant-baseline="central" text-anchor="start">No · revise / retry</text>
+<polyline points="560,2225 560,2280" fill="none" stroke="#23865e" stroke-width="3"/>
+<polygon points="560,2280 568.0,2263.0 552.0,2263.0" fill="#23865e"/>
+<text x="580" y="2252" fill="#23865e" font-family="Arial, sans-serif" font-size="23" font-weight="700" dominant-baseline="central" text-anchor="start">Yes</text>
+<rect x="310" y="2280" width="500" height="80" rx="40" fill="#c1ecd7" stroke="#23865e" stroke-width="3"/>
+<text x="560" y="2320" fill="#172b44" font-family="Arial, sans-serif" font-size="29" font-weight="700" dominant-baseline="central" text-anchor="middle">Work complete</text>
+<text x="50" y="2454" fill="#586b85" font-family="Arial, sans-serif" font-size="23" font-weight="400" dominant-baseline="central" text-anchor="start">Guard coverage depends on the host and installed integration; it is not a sandbox.</text>
+<text x="50" y="2491" fill="#586b85" font-family="Arial, sans-serif" font-size="22" font-weight="400" dominant-baseline="central" text-anchor="start">Native Windows: portable Claude hook installer. Unix launcher / crew support is separate.</text>
+</svg>
