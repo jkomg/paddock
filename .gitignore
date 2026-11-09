@@ -11,3 +11,7 @@ llm-profiles/crews.tsv
 llm-profiles/wrappers.tsv
 crew/local.env
 crew/local/
+
+*.llm-profiles-bak
+
+dist/

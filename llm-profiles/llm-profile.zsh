@@ -10,7 +10,7 @@
 # kept when it names a profile the folder allows. Outside the listed folders, plain `claude` /
 # `codex` behave exactly as before.
 
-_llm_profile_py="$HOME/.config/llm-profiles/llm_profile.py"
+_llm_profile_py="${${(%):-%x}:A:h}/llm_profile.py"
 typeset -gA _llm_alias
 () {
   local l
