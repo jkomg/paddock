@@ -51,6 +51,22 @@ if [ "$QWEN_BACKEND" = lmstudio ]; then
     lms load "${CREW_LMSTUDIO_SOURCE:-qwen/qwen3.6-35b-a3b}" --identifier "${QWEN_MODEL#*/}" \
       --context-length "$QWEN_CTX" -y >/dev/null || { echo "crew-up: LM Studio load failed; retry with CREW_QWEN_BACKEND=ollama" >&2; exit 1; }
   fi
+elif [ "$QWEN_BACKEND" = remote ]; then
+  # LM Studio on another machine (CREW_LMSTUDIO_SSH, an ssh alias), through an SSH tunnel to a
+  # loopback port and the gateway's /lmstudio-remote route (its lmstudio_remote_url must be
+  # http://127.0.0.1:<that port>). Calls are recorded like local ones, with their own queue.
+  # A smaller machine needs a smaller model and context: the defaults fit 16 GB.
+  QWEN_MODEL="${CREW_QWEN_MODEL:-lmstudio-remote/qwen3-8b}"
+  QWEN_URL="$GATEWAY/lmstudio-remote/v1"
+  QWEN_CTX="${CREW_QWEN_CTX:-32768}"
+  crew_remote_tunnel || exit 1
+  SRC="${CREW_LMSTUDIO_SOURCE:-qwen/qwen3-8b}"
+  if ! crew_remote_lms ps 2>/dev/null | grep -q "^${QWEN_MODEL#*/} "; then
+    echo "qwen: loading $SRC on $CREW_LMSTUDIO_SSH as ${QWEN_MODEL#*/}"
+    crew_remote_lms server status >/dev/null 2>&1 || crew_remote_lms server start >/dev/null
+    crew_remote_lms load "$SRC" --identifier "${QWEN_MODEL#*/}" --context-length "$QWEN_CTX" -y >/dev/null \
+      || { echo "crew-up: remote LM Studio load failed on $CREW_LMSTUDIO_SSH" >&2; exit 1; }
+  fi
 else
   QWEN_URL="$GATEWAY/ollama/v1"
 fi
@@ -61,6 +77,8 @@ p = {"settings": {"baseURL": sys.argv[2]},
 p["settings"]["headers"] = {"X-TF-Profile": sys.argv[6], "X-TF-Project": os.path.basename(sys.argv[3])}
 if provider == "lmstudio":
     p.update(name="LM Studio (MLX)", package="@opencode/ai/providers/openai-compatible")
+if provider == "lmstudio-remote":
+    p.update(name="Remote LM Studio (MLX)", package="@opencode/ai/providers/openai-compatible")
 print(json.dumps({"model": sys.argv[1], "share": "disabled", "providers": {provider: p},
  "policies": [{"action":"provider.use","resource":"*","effect":"deny"},
               {"action":"provider.use","resource":provider,"effect":"allow"}]}))' "$QWEN_MODEL" "$QWEN_URL" "$PROJECT" "$QWEN_CTX" "$QWEN_OUT" "$CREW_LEDGER")

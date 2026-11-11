@@ -28,7 +28,10 @@ if crew_has gemini; then
   printf 'gemini  : '; python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1])).get("active"))' "$HOME/.gemini/google_accounts.json" 2>/dev/null || echo unknown
 fi
 if crew_has qwen; then
-  printf 'qwen    : '; curl -fsS http://127.0.0.1:8741/lmstudio/v1/models 2>/dev/null | python3 -I -c 'import json,sys; ids=[m["id"] for m in json.load(sys.stdin)["data"]]; print("gateway up; LM Studio", "qwen36-mlx loaded" if "qwen36-mlx" in ids else "qwen36-mlx NOT loaded (crew-up loads it)")' 2>/dev/null || echo "gateway or LM Studio DOWN (fallback: CREW_QWEN_BACKEND=ollama)"
+  ROUTE=$(crew_qwen_route)
+  if [ "$ROUTE" = lmstudio-remote ]; then WANT="${CREW_QWEN_MODEL:-lmstudio-remote/qwen3-8b}"; crew_remote_tunnel 2>/dev/null
+  else WANT="${CREW_QWEN_MODEL:-lmstudio/qwen36-mlx}"; fi
+  printf 'qwen    : '; curl -fsS "$CREW_GATEWAY/$ROUTE/v1/models" 2>/dev/null | python3 -I -c 'import json,sys; want=sys.argv[1].split("/",1)[1]; ids=[m["id"] for m in json.load(sys.stdin)["data"]]; print("gateway up;", sys.argv[2], want, "loaded" if want in ids else "NOT loaded (crew-up loads it)")' "$WANT" "$ROUTE${CREW_LMSTUDIO_SSH:+ on $CREW_LMSTUDIO_SSH}" 2>/dev/null || echo "gateway or $ROUTE DOWN"
 fi
 if crew_has litellm; then
   printf 'litellm : '

@@ -40,6 +40,10 @@ This opens a `crew` tab with this account's live workers in `<project-dir>`.
   20 GB of model weights, plus context/cache memory).
 - `CREW_QWEN_BACKEND=ollama` falls back to Ollama (`qwen3.6-crew`, 64K context) through
   `/ollama`.
+- `CREW_QWEN_BACKEND=remote` runs qwen on LM Studio on another machine (`CREW_LMSTUDIO_SSH`, an
+  ssh alias): crew-up opens an ssh tunnel, loads the model there (default `qwen3-8b`, 32K, for a
+  16 GB Mac) and routes through the gateway's `/lmstudio-remote`, which queues separately from
+  this machine. A smaller remote model is weaker: keep its briefs small. See `local.env.example`.
 - It is idempotent.
 
 **Coordinators and Spaces.** Run one coordinator Space per account (any label containing
