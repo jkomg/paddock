@@ -7,10 +7,27 @@ local model, account-switching setup, or mandatory second provider is required.
 See NOTICE.txt. The package contains no credentials, provider logins, company-specific
 bindings, or model runtimes.
 
+## Which package to share
+
+Send coworkers the **installer ZIP** and `SHA256SUMS` from the same build. It includes
+this guide, the installer, tests, license and workflow diagram. Extract the ZIP and
+open a terminal in the extracted `paddock-t3-VERSION` folder before installing.
+The smaller skill ZIP is for manual installation only; do not install both.
+Coworkers do not need this repository or the legacy herdr/account-guard setup.
+
+Before extracting, check the ZIP with `shasum -a 256 paddock-t3-installer-*.zip` on
+macOS (`sha256sum` on Linux), or `Get-FileHash .\paddock-t3-installer-*.zip -Algorithm SHA256`
+in PowerShell. Compare the hash with the matching filename in `SHA256SUMS`.
+A checksum detects changes in transit; obtain both files from the intended sender.
+
 ## Install
 
 Requirements: Python 3.11+, Git, T3 with a signed-in approved provider. Skill discovery
 is provider-specific; installation does not prove the T3 host loaded it.
+
+Check `python3 --version` and `git --version` first (`python --version` on Windows).
+The installer and local checks use Python's standard library; no pip packages,
+administrator privileges, or local model downloads are needed.
 
 Extract the installer ZIP to a normal folder. Preview and then apply to the provider's
 actual skills directory. For a default Codex home from native PowerShell:
@@ -38,6 +55,17 @@ installs have no installer manifest: do not use managed upgrade/uninstall on the
 The managed installer is repeatable with `--upgrade --apply` and removable with
 `--uninstall --apply`. It refuses to overwrite/remove locally modified installations.
 It does not edit global credentials, T3 settings, other skills, or existing projects.
+
+Check the installed copy using your actual skills directory:
+
+```sh
+python3 "$HOME/.codex/skills/paddock-crew/scripts/paddock.py" --version
+```
+
+On Windows use `python` instead of `python3`. Start a fresh provider session in T3
+and use the onboarding request below. If the skill is not discovered, check the
+active provider's configuration home and skill-discovery support. A successful
+version check verifies the files, not T3 skill loading.
 
 ## First T3 conversation
 
@@ -70,6 +98,26 @@ Use the full script path when not in the skill folder. The project starts with n
 verification commands; configure its actual tests/build/lint, not a dummy success.
 Local crew bindings and run evidence stay Git-ignored. Commit shared rules and checks
 through the project's normal process. New machines must supply local crew bindings.
+
+After setup, run `python .paddock/paddock.py doctor --project .` from the adopted repo
+(use `python3` on macOS where needed). An unbound crew or unconfigured checks produce
+exit 1 until onboarding is complete. Doctor does not execute checks or verify live
+provider availability. Finish with a small real task and independent reviews in T3.
+
+## Upgrade or remove
+
+Keep the extracted installer for maintenance. Preview these commands by omitting
+`--apply`, using your actual skills directory:
+
+```sh
+python3 install.py --skills-dir "$HOME/.codex/skills" --upgrade --apply
+python3 install.py --skills-dir "$HOME/.codex/skills" --uninstall --apply
+```
+
+On Windows use `python` instead of `python3`. Upgrade uses the new package's installer;
+uninstall removes the managed skill only. Neither updates nor removes `.paddock`
+files already copied into projects. Those files need a deliberate project update.
+If local modifications are reported, preserve and reconcile them before retrying.
 
 ## What the adversary does
 

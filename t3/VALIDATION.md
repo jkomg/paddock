@@ -1,4 +1,4 @@
-# Preview validation — 2026-11-09
+# Preview validation — 2026-11-13
 
 This is a public preview, not a claim of complete cross-platform host validation.
 
@@ -17,6 +17,21 @@ From a repository checkout, use `-s t3/tests`; the guard suite is `-s llm-profil
 - Extracted installer ZIP: the package suite ran from a fresh path containing spaces.
 - Skill metadata/frontmatter validator passed.
 - Both ZIP inventories and payload SHA-256 hashes were checked against their manifests.
+
+## Hosted platform checks
+
+[GitHub Actions run 42961880456](https://github.com/jkomg/paddock/actions/runs/42961880456)
+passed on 2026-11-11 for commit `679ef7ac6a5f8309f4e1cd9f9493e54c1a8344a0`.
+Its macOS, Ubuntu and native Windows jobs passed, including package tests and tests
+from extracted installer archives. The Windows job also executed the PowerShell
+installer test. This verifies that committed baseline, not subsequent local edits
+or real signed-in T3 integration.
+
+The 2026-11-13 coworker-readiness pass adds an installed-copy smoke test: install in
+a path with spaces, create a project using the installed CLI, uninstall the skill,
+then execute a real unittest through the project's copied runner and adapter.
+Unbound providers and missing reviews must still report incomplete. This new test
+is validated locally on macOS; it has not yet run in hosted CI.
 
 ## Claims and the tests that prove them
 
@@ -49,6 +64,7 @@ names a test that does not exist.
 | Windows-anchored paths are refused on every platform | `test_windows_anchored_receipt_paths_rejected_on_every_platform` |
 | Roles stay unbound until bound to a live, approved instance | `test_interview_records_unbound_roles`, `test_route_requires_explicit_binding_and_live_provider` |
 | Installation previews, upgrades, uninstalls, and refuses local changes | `test_install_preview_upgrade_and_uninstall`, `test_installer_refuses_local_changes` |
+| Installed skill creates a project whose runner works after skill removal; missing reviews remain incomplete | `test_installed_skill_creates_and_verifies_project` |
 
 ## Earlier review history
 
@@ -65,9 +81,8 @@ unittest adapter and package tests. This is scoped review, not proof of correctn
 
 ## Still unverified
 
-- Native Windows/PowerShell execution. CI includes native Windows jobs, but those jobs
-  have not executed as part of this local delivery.
-- Hosted CI execution and any branch-protection setup.
+- Native Windows/PowerShell and hosted CI execution of the 2026-11-13 local additions.
+- Branch-protection setup.
 - End-to-end T3 cross-provider dispatch, provider-specific skill loading, and actual
   host permission enforcement on recipients' machines.
 - A full multi-provider task with real signed-in identities and independent host receipts.

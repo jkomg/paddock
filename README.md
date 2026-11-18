@@ -23,9 +23,10 @@ bindings, account files, credentials and run evidence are excluded. See
 [the notice](t3/NOTICE.txt).
 
 The preview's local records are editable, not authenticated attestations. A complete
-audit record is not proof of model honesty or runtime enforcement. Native Windows and
-real T3 host integration need their own executed validation; CI configuration alone
-does not establish either. No release is published automatically.
+audit record is not proof of model honesty or runtime enforcement. The committed
+baseline passed macOS, Linux and native Windows CI; see the exact run and remaining
+real T3 integration limits in [the validation record](t3/VALIDATION.md).
+No release is published automatically.
 
 ## Legacy herdr crew and optional multi-account guards
 
@@ -148,8 +149,9 @@ The installer discovers Claude homes from `~/.t3/userdata/settings.json`; set
 `LLM_PROFILES_EXTRA_CLAUDE_DIRS` use `;` on Windows and `:` on Unix.
 
 The native Windows test job exercises installation, uninstall, hook execution with spaces
-in paths, and Windows path matching. It still needs to run on Windows; local verification
-was on macOS. Confirm that the real Claude/T3 host invokes the installed hook by attempting
+in paths, and Windows path matching. The committed baseline passed that native Windows
+job; see [the validation record](t3/VALIDATION.md). Confirm that the real Claude/T3
+host invokes the installed hook by attempting
 a file read with the wrong account in a test repo and checking that it is denied.
 
 **Platform boundary:** `t3-codex` is currently a POSIX shell launcher, and herdr crew scripts
