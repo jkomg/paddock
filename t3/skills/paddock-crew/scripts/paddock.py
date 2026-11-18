@@ -320,8 +320,146 @@ def contract_state(root, rd):
     return digest({str(p.relative_to(root)): sha(p.read_bytes()) for p in files})
 
 
+# ------------------------------------------------------------------ exposed credentials
+# A credential seen in chat, a file, tool output or evidence is treated as compromised. Its
+# incident blocks task work until the credential is rotated and the rotation is evidenced.
+# Records never hold the secret: only its kind, where it appeared and at most 4 characters.
+INCIDENTS = ".paddock/runs/.incidents"   # never a task ID (those start with a letter/digit)
+SECRET_PATTERNS = (
+    ("private key", re.compile(r"-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----")),
+    ("AWS access key", re.compile(r"\b((?:AKIA|ASIA)[0-9A-Z]{16})\b")),
+    ("GitHub token", re.compile(r"\b(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{50,})\b")),
+    ("Anthropic API key", re.compile(r"\b(sk-ant-[A-Za-z0-9_-]{20,})")),
+    ("OpenAI/LiteLLM-style API key", re.compile(r"\b(sk-(?!ant-)[A-Za-z0-9_-]{20,})")),
+    ("Slack token", re.compile(r"\b(xox[abprs]-[A-Za-z0-9-]{10,})")),
+    ("Google API key", re.compile(r"\b(AIza[0-9A-Za-z_-]{35})")),
+    ("Stripe live key", re.compile(r"\b([rs]k_live_[0-9A-Za-z]{20,})")),
+    ("JSON Web Token", re.compile(r"\b(eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,})")),
+    ("password in URL", re.compile(r"\b[a-z][a-z0-9+.-]*://[^/\s:@]+:([^/\s@]{3,})@", re.I)),
+    ("assigned secret", re.compile(
+        r"(?i)\b(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?key|auth[_-]?token|token)\b"
+        r"[\"']?\s*[:=]\s*[\"']?([^\s\"',;]{8,})")),
+)
+PLACEHOLDER = re.compile(r"(?i)^(<.*>|\$.*|%.*|\*+|x+|\.+|your[_-].*|example.*|changeme|placeholder|redacted|none|null)$")
+
+
+def find_secrets(text):
+    """Likely credentials in text: [(line, kind, hint)]. A heuristic: it misses secrets
+    with no recognisable shape, so a clean scan is not proof that none is present."""
+    found = []
+    for n, line in enumerate(text.splitlines(), 1):
+        for kind, pattern in SECRET_PATTERNS:
+            for m in pattern.finditer(line):
+                value = m.group(1) if pattern.groups else m.group(0)
+                if PLACEHOLDER.match(value):
+                    continue
+                if kind in ("assigned secret", "password in URL") and (
+                        any(c in value for c in "()[]{}<>") or not (re.search(r"\d", value) and re.search(r"[A-Za-z]", value))):
+                    continue  # code (args.token, os.environ[...]) or plain words, not a credential
+                hint = value[-4:] if len(value) >= 12 else ""
+                if kind == "assigned secret" and any(f[0] == n and f[2] == hint for f in found):
+                    continue  # already reported under its specific kind
+                found.append((n, kind, hint))
+    return found
+
+
+def incident_dir(root):
+    return within(root, INCIDENTS)
+
+
+def incidents(root):
+    d = incident_dir(root)
+    return [read(p) for p in sorted(d.glob("sec-*.json"))] if d.is_dir() else []
+
+
+def open_incidents(root):
+    return [i for i in incidents(root) if i.get("status") != "closed"]
+
+
+def require_no_open_incident(root):
+    ids = [i.get("id", "?") for i in open_incidents(root)]
+    if ids:
+        fail("Exposed-credential incident open (" + ", ".join(ids) + "). Work stays stopped until the "
+             "credential is rotated and `paddock.py secret close` records the evidence")
+
+
+def secret_open(args):
+    root = project_root(args.project)
+    if args.hint and not re.fullmatch(r"[A-Za-z0-9_-]{1,4}", args.hint):
+        fail("--hint is at most the last 4 characters of the credential, never the whole value")
+    for label, text in (("--kind", args.kind), ("--where", args.where)):
+        if find_secrets(text):
+            fail(label + " looks like it contains the credential itself; describe it instead")
+    now = datetime.now(timezone.utc)
+    rec = {"schema": 1, "id": "sec-" + now.strftime("%Y%m%d%H%M%S") + "-" + uuid.uuid4().hex[:4],
+           "status": "open", "opened_at": now.isoformat(), "kind": args.kind, "where": args.where,
+           "hint": args.hint or None}
+    path = incident_dir(root) / (rec["id"] + ".json")
+    emit({"incident": rec, "path": str(path), "written": {str(path): save(path, rec)},
+          "blocked": ["task", "verify", "packet", "audit"]})
+    return 0
+
+
+VERIFIED = ("issuer_shows_revoked", "old_rejected")
+
+
+def secret_close(args):
+    root = project_root(args.project)
+    if not re.fullmatch(r"sec-[0-9]{14}-[0-9a-f]{4}", args.id):
+        fail("Unknown incident ID")
+    path = incident_dir(root) / (args.id + ".json")
+    if not path.is_file():
+        fail("Unknown incident ID")
+    rec = read(path)
+    if rec.get("status") == "closed":
+        fail("Incident already closed")
+    how = args.verification
+    if how in VERIFIED and not args.evidence:
+        fail(how + " needs --evidence: the issuer's listing or the rejected request's response")
+    if how not in VERIFIED and not (args.statement or "").strip():
+        fail(how + " needs --statement recording what the user did or said")
+    if how != "false_positive" and not args.replacement:
+        fail("--replacement records where the new credential is kept (or not_replaced)")
+    evidence = Path(args.evidence).read_bytes() if args.evidence else b""
+    for label, text in (("evidence", evidence.decode("utf-8", "replace")), ("statement", args.statement or "")):
+        hits = find_secrets(text)
+        if hits:
+            fail("The " + label + " contains what looks like a credential (" + hits[0][1] + "); remove it and retry")
+    written = {}
+    if evidence:
+        ev = incident_dir(root) / (args.id + "-evidence.txt")
+        written[str(ev)] = write_atomic(ev, evidence)
+    rec.update(status="closed", closed_at=datetime.now(timezone.utc).isoformat(), verification=how,
+               assurance="verified" if how in VERIFIED else ("not_a_credential" if how == "false_positive" else "user_attested"),
+               statement=args.statement or None, replacement=args.replacement,
+               evidence=(args.id + "-evidence.txt") if evidence else None,
+               evidence_sha256=sha(evidence) if evidence else None)
+    written[str(path)] = save(path, rec)
+    emit({"incident": rec, "written": written, "open_incidents": [i["id"] for i in open_incidents(root)]})
+    return 0
+
+
+def secret_status(args):
+    root = project_root(args.project)
+    all_ = incidents(root)
+    still = [i for i in all_ if i.get("status") != "closed"]
+    emit({"open": still, "closed": [{k: i.get(k) for k in ("id", "kind", "assurance", "closed_at")}
+                                    for i in all_ if i.get("status") == "closed"]})
+    return 1 if still else 0
+
+
+def secret_scan(args):
+    findings = []
+    for name in args.paths:
+        text = sys.stdin.read() if name == "-" else Path(name).read_text(encoding="utf-8", errors="replace")
+        findings += [{"source": name, "line": n, "kind": k, "hint": h} for n, k, h in find_secrets(text)]
+    emit({"findings": findings, "limitation": "Pattern match: a clean scan does not prove no secret is present"})
+    return 1 if findings else 0
+
+
 def task(args):
     root = project_root(args.project)
+    require_no_open_incident(root)
     rd = run_dir(root, args.task)
     if rd.exists():
         fail("Task already exists; preserve its evidence or choose a new task ID")
@@ -386,6 +524,7 @@ def checks_config(root):
 
 def verify(args):
     root = project_root(args.project)
+    require_no_open_incident(root)
     rd = run_dir(root, args.task)
     contract_state(root, rd)  # require an initialized task
     # A new attempt invalidates the last green result before any adapter executes.
@@ -484,9 +623,16 @@ def evidence_inputs(root, rd):
 
 def packet(args):
     root = project_root(args.project)
+    require_no_open_incident(root)
     rd = run_dir(root, args.task)
     state = source_state(root)
     inputs = evidence_inputs(root, rd)
+    # The packet goes to reviewers, often another provider: refuse to send a credential.
+    hits = [f"{name}:{n} ({kind})" for name in inputs
+            for n, kind, _ in find_secrets((root / name).read_text(encoding="utf-8", errors="replace"))]
+    if hits:
+        fail("Evidence contains what looks like a credential: " + ", ".join(hits[:5]) + ". Remove it, "
+             "and if it is real, record it with `paddock.py secret open` and rotate it")
     data = {"schema": 1, "source_digest": state["digest"], "source_files": state["files"],
             "contract_digest": contract_state(root, rd), "inputs": inputs}
     emit({"packet": str(rd / "packet.json"), "packet_digest": save(rd / "packet.json", data),
@@ -558,6 +704,9 @@ def audit(args):
         if receipt is not None and (not receipt.is_file() or not receipt.read_bytes().strip()):
             errors.append("Missing actual reviewer receipt: " + kind)
         reviews[kind] = r.get("status", "pending")
+    still = attempt(errors, "Cannot read credential incidents", open_incidents, root) or []
+    if still:
+        errors.append("Exposed-credential incident open: " + ", ".join(i.get("id", "?") for i in still))
     if len(ids) == 2 and ids[0] == ids[1]:
         errors.append("Code reviewer and process adversary must be separate fresh sessions")
     controls = host.get("controls_state")
@@ -583,9 +732,14 @@ def doctor(args):
         status["checks"] = "configured; not executed by doctor"
     except (OSError, ValueError) as e:
         status["checks"] = str(e)
+    try:
+        still = open_incidents(root)
+        status["credential_incidents"] = ("open: " + ", ".join(i.get("id", "?") for i in still)) if still else "none open"
+    except (OSError, ValueError) as e:
+        still, status["credential_incidents"] = [None], str(e)
     status["host_integration"] = "not tested by this CLI; verify inside T3"
     emit(status)
-    return 0 if status["crew"] == "bound" and status["checks"].startswith("configured") else 1
+    return 0 if status["crew"] == "bound" and status["checks"].startswith("configured") and not still else 1
 
 
 def main(argv=None):
@@ -611,7 +765,25 @@ def main(argv=None):
             p.add_argument("--task", required=True)
         if name == "task":
             p.add_argument("--request", required=True); p.add_argument("--contract", required=True)
+    p = sub.add_parser("secret", allow_abbrev=False,
+                       help="record, close or scan for exposed credentials (blocks task work while open)")
+    ss = p.add_subparsers(dest="secret_cmd", required=True)
+    q = ss.add_parser("open", allow_abbrev=False); q.add_argument("--project", default=".")
+    q.add_argument("--kind", required=True, help="what it is, e.g. 'LiteLLM API key'; never the value")
+    q.add_argument("--where", required=True, help="where it appeared, e.g. 'T3 chat, coordinator thread'")
+    q.add_argument("--hint", help="at most its last 4 characters, to tell credentials apart")
+    q = ss.add_parser("close", allow_abbrev=False); q.add_argument("--project", default=".")
+    q.add_argument("--id", required=True)
+    q.add_argument("--verification", required=True,
+                   choices=("issuer_shows_revoked", "old_rejected", "user_attested", "false_positive"))
+    q.add_argument("--evidence", help="file: the issuer's listing or the rejected request's response")
+    q.add_argument("--statement", help="what the user did or said (required unless verified by evidence)")
+    q.add_argument("--replacement", choices=("secure_entry", "os_keychain", "provider_managed", "not_replaced"))
+    q = ss.add_parser("status", allow_abbrev=False); q.add_argument("--project", default=".")
+    q = ss.add_parser("scan", allow_abbrev=False); q.add_argument("paths", nargs="+", help="files, or - for stdin")
     args = parser.parse_args(argv)
+    if args.cmd == "secret":
+        return {"open": secret_open, "close": secret_close, "status": secret_status, "scan": secret_scan}[args.secret_cmd](args)
     return {"interview": interview, "bind": bind, "route": route, "project": scaffold,
             "task": task, "verify": verify, "packet": packet, "audit": audit, "doctor": doctor}[args.cmd](args)
 

@@ -364,6 +364,11 @@ usually means an invalid or inactive key, 403 an access restriction, 429 a usage
 model-not-found needs an exact model name. For connection or certificate errors, check
 VPN/network requirements; never disable certificate verification.
 
+**You pasted a password or key into chat.** The assistant will stop and won't continue
+until it's rotated. That is deliberate: chat history is stored, so the value counts as
+exposed. It shows you exactly where to revoke the old one and create a new one, runs what
+it can for you, and records the evidence. Give the new value only through secure entry.
+
 **Doctor fails or reviews are missing.** Ask the assistant to finish real checks and
 bindings. Never replace a check with one that always passes. If separate reviews cannot
 run, don't call the task reviewed.

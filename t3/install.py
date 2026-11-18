@@ -13,7 +13,7 @@ NAME = 'paddock-crew'
 FILES = (
     'SKILL.md', 'agents/openai.yaml',
     'references/onboarding.md', 'references/orchestration.md',
-    'references/reviews.md', 'references/evidence.md',
+    'references/reviews.md', 'references/evidence.md', 'references/secrets.md',
     'scripts/paddock.py', 'assets/project/RULES.md',
     'assets/project/project.json', 'assets/project/unittest_receipt.py',
 )

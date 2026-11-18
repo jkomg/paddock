@@ -35,6 +35,15 @@ merge project actions only after reading existing actions. Users can also add th
 folder through T3. Skill discovery is provider-specific; the project instruction
 files supply the shared process even where the host cannot discover this skill.
 
+## Exposed credentials: stop first
+
+This overrides every other step. If a password, API key, token, private key or similar
+credential appears in chat, a file, tool output, logs or evidence, stop the task. Never
+repeat the value, tell the user plainly, and record it with `secret open`. Then walk the user
+through revoking and replacing it, doing the steps you can for them. Continue only after
+`secret close` records evidence of the rotation. Task commands refuse to run while an
+incident is open. Follow [exposed credentials](references/secrets.md).
+
 ## Every adopted task
 
 Read `.paddock/RULES.md`, the repo's existing instructions, and
