@@ -29,8 +29,11 @@ if crew_has gemini; then
 fi
 if crew_has qwen; then
   ROUTE=$(crew_qwen_route)
-  if [ "$ROUTE" = lmstudio-remote ]; then WANT="${CREW_QWEN_MODEL:-lmstudio-remote/qwen3-8b}"; crew_remote_tunnel 2>/dev/null
-  else WANT="${CREW_QWEN_MODEL:-lmstudio/qwen36-mlx}"; fi
+  case "$ROUTE" in   # defaults match crew-up.sh
+    lmstudio-remote) WANT="${CREW_QWEN_MODEL:-lmstudio-remote/qwen3-8b}"; crew_remote_tunnel 2>/dev/null ;;
+    ollama) WANT="${CREW_QWEN_MODEL:-ollama/qwen3.6-crew}" ;;
+    *) WANT="${CREW_QWEN_MODEL:-lmstudio/qwen36-mlx}" ;;
+  esac
   printf 'qwen    : '; curl -fsS "$CREW_GATEWAY/$ROUTE/v1/models" 2>/dev/null | python3 -I -c 'import json,sys; want=sys.argv[1].split("/",1)[1]; ids=[m["id"] for m in json.load(sys.stdin)["data"]]; print("gateway up;", sys.argv[2], want, "loaded" if want in ids else "NOT loaded (crew-up loads it)")' "$WANT" "$ROUTE${CREW_LMSTUDIO_SSH:+ on $CREW_LMSTUDIO_SSH}" 2>/dev/null || echo "gateway or $ROUTE DOWN"
 fi
 if crew_has litellm; then

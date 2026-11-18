@@ -38,15 +38,17 @@ crew_remote_lms() {   # run lms on the remote machine
   _crew_remote_host || return 1
   ssh -o BatchMode=yes -o ConnectTimeout=10 "$CREW_LMSTUDIO_SSH" '~/.lmstudio/bin/lms' "$@"
 }
-crew_remote_tunnel() {   # idempotent: reuse a working tunnel, else open one in the background
+crew_remote_tunnel() {   # idempotent: open the forward unless something already listens on the port.
+  # Does not need LM Studio's server to be running: crew-up starts it through this tunnel.
   local port="$CREW_LMSTUDIO_TUNNEL_PORT"
   _crew_remote_host || return 1
-  curl -fsS -m 5 -o /dev/null "http://127.0.0.1:$port/v1/models" 2>/dev/null && return 0
+  (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null && return 0
   ssh -fN -o BatchMode=yes -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
     -L "127.0.0.1:$port:127.0.0.1:1234" "$CREW_LMSTUDIO_SSH" \
     || { echo "crew: could not open the tunnel to $CREW_LMSTUDIO_SSH" >&2; return 1; }
-  curl -fsS -m 10 -o /dev/null "http://127.0.0.1:$port/v1/models" 2>/dev/null \
-    || { echo "crew: tunnel to $CREW_LMSTUDIO_SSH is up but LM Studio's server is not answering" >&2; return 1; }
+}
+crew_remote_ready() {   # LM Studio's server answers through the tunnel; $1 = timeout in seconds
+  curl -fsS -m "${1:-10}" -o /dev/null "http://127.0.0.1:$CREW_LMSTUDIO_TUNNEL_PORT/v1/models" 2>/dev/null
 }
 
 crew_space() {

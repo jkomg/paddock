@@ -60,10 +60,16 @@ elif [ "$QWEN_BACKEND" = remote ]; then
   QWEN_URL="$GATEWAY/lmstudio-remote/v1"
   QWEN_CTX="${CREW_QWEN_CTX:-32768}"
   crew_remote_tunnel || exit 1
+  if ! crew_remote_ready 5; then
+    echo "qwen: starting LM Studio's server on $CREW_LMSTUDIO_SSH"
+    crew_remote_lms server start >/dev/null \
+      || { echo "crew-up: could not start LM Studio's server on $CREW_LMSTUDIO_SSH" >&2; exit 1; }
+    for _ in 1 2 3 4 5 6 7 8 9 10; do crew_remote_ready 3 && break; sleep 2; done
+    crew_remote_ready 5 || { echo "crew-up: LM Studio's server on $CREW_LMSTUDIO_SSH is not answering through the tunnel" >&2; exit 1; }
+  fi
   SRC="${CREW_LMSTUDIO_SOURCE:-qwen/qwen3-8b}"
   if ! crew_remote_lms ps 2>/dev/null | grep -q "^${QWEN_MODEL#*/} "; then
     echo "qwen: loading $SRC on $CREW_LMSTUDIO_SSH as ${QWEN_MODEL#*/}"
-    crew_remote_lms server status >/dev/null 2>&1 || crew_remote_lms server start >/dev/null
     crew_remote_lms load "$SRC" --identifier "${QWEN_MODEL#*/}" --context-length "$QWEN_CTX" -y >/dev/null \
       || { echo "crew-up: remote LM Studio load failed on $CREW_LMSTUDIO_SSH" >&2; exit 1; }
   fi
