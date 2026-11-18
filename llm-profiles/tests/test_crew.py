@@ -84,8 +84,10 @@ print(json.dumps({"result": out}))
 
     def test_remote_backend_route_and_tunnel(self):
         bindir = self.home / "bin"
-        # curl fails until fake ssh has "opened" the tunnel; ssh records its arguments.
-        (bindir / "curl").write_text('#!/bin/sh\n[ -f "$HOME/tunnel" ] || exit 7\necho \'{"data":[]}\'\n')
+        # curl is refused (7) until fake ssh has "opened" the tunnel, then gets an empty reply (52)
+        # until the remote server is "started"; ssh records its arguments.
+        (bindir / "curl").write_text('#!/bin/sh\n[ -f "$HOME/tunnel" ] || exit 7\n'
+                                     '[ -f "$HOME/server" ] || exit 52\necho \'{"data":[]}\'\n')
         (bindir / "ssh").write_text('#!/bin/sh\necho "$@" >> "$HOME/ssh-calls"\n'
                                     'case " $* " in *" -fN "*) touch "$HOME/tunnel";; esac\n')
         for name in ("curl", "ssh"):
@@ -105,6 +107,10 @@ print(json.dumps({"result": out}))
         calls = (self.home / "ssh-calls").read_text().splitlines()
         self.assertEqual(len(calls), 1)
         self.assertIn("-L 127.0.0.1:12999:127.0.0.1:1234 lab-mac", calls[0])
+        # A stopped remote server does not block the tunnel; readiness is checked separately.
+        self.assertNotEqual(self.lib("crew_remote_ready 1").returncode, 0)
+        (self.home / "server").touch()
+        self.assertEqual(self.lib("crew_remote_ready 1").returncode, 0)
         r = self.lib("crew_remote_lms ps")
         self.assertIn("lab-mac ~/.lmstudio/bin/lms ps", (self.home / "ssh-calls").read_text())
 

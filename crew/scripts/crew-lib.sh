@@ -42,7 +42,9 @@ crew_remote_tunnel() {   # idempotent: open the forward unless something already
   # Does not need LM Studio's server to be running: crew-up starts it through this tunnel.
   local port="$CREW_LMSTUDIO_TUNNEL_PORT"
   _crew_remote_host || return 1
-  (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null && return 0
+  # curl exit 7 = connection refused: no tunnel. Anything else (an answer, or an empty reply
+  # because the remote server is stopped) means a tunnel already listens.
+  curl -fsS -m 5 -o /dev/null "http://127.0.0.1:$port/v1/models" 2>/dev/null; [ $? -ne 7 ] && return 0
   ssh -fN -o BatchMode=yes -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
     -L "127.0.0.1:$port:127.0.0.1:1234" "$CREW_LMSTUDIO_SSH" \
     || { echo "crew: could not open the tunnel to $CREW_LMSTUDIO_SSH" >&2; return 1; }
