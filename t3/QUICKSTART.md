@@ -10,7 +10,8 @@ bindings, or model runtimes.
 ## Which package to share
 
 Send coworkers the **installer ZIP** and `SHA256SUMS` from the same build. It includes
-this guide, the installer, tests, license and workflow diagram. Extract the ZIP and
+this guide, a step-by-step `SETUP-GUIDE.md` for first-time users, the installer,
+tests, license and workflow diagram. Extract the ZIP and
 open a terminal in the extracted `paddock-t3-VERSION` folder before installing.
 The smaller skill ZIP is for manual installation only; do not install both.
 Coworkers do not need this repository or the legacy herdr/account-guard setup.
