@@ -24,6 +24,35 @@ crew_env() {
 
 crew_has() { [[ " $CREW_WORKERS " == *" $1 "* ]]; }
 
+# CREW_QWEN_BACKEND=remote: LM Studio on CREW_LMSTUDIO_SSH (an ssh alias with key auth),
+# reached through a tunnel on 127.0.0.1:CREW_LMSTUDIO_TUNNEL_PORT.
+CREW_LMSTUDIO_TUNNEL_PORT="${CREW_LMSTUDIO_TUNNEL_PORT:-12340}"
+crew_qwen_route() {   # gateway route prefix for the configured qwen backend
+  case "${CREW_QWEN_BACKEND:-lmstudio}" in remote) echo lmstudio-remote;; ollama) echo ollama;; *) echo lmstudio;; esac
+}
+_crew_remote_host() {   # fail (not exit: crew-check keeps going) when no remote is configured
+  [ -n "${CREW_LMSTUDIO_SSH:-}" ] && return 0
+  echo "crew: CREW_LMSTUDIO_SSH not set (crew/local.env)" >&2; return 1
+}
+crew_remote_lms() {   # run lms on the remote machine
+  _crew_remote_host || return 1
+  ssh -o BatchMode=yes -o ConnectTimeout=10 "$CREW_LMSTUDIO_SSH" '~/.lmstudio/bin/lms' "$@"
+}
+crew_remote_tunnel() {   # idempotent: open the forward unless something already listens on the port.
+  # Does not need LM Studio's server to be running: crew-up starts it through this tunnel.
+  local port="$CREW_LMSTUDIO_TUNNEL_PORT"
+  _crew_remote_host || return 1
+  # curl exit 7 = connection refused: no tunnel. Anything else (an answer, or an empty reply
+  # because the remote server is stopped) means a tunnel already listens.
+  curl -fsS -m 5 -o /dev/null "http://127.0.0.1:$port/v1/models" 2>/dev/null; [ $? -ne 7 ] && return 0
+  ssh -fN -o BatchMode=yes -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+    -L "127.0.0.1:$port:127.0.0.1:1234" "$CREW_LMSTUDIO_SSH" \
+    || { echo "crew: could not open the tunnel to $CREW_LMSTUDIO_SSH" >&2; return 1; }
+}
+crew_remote_ready() {   # LM Studio's server answers through the tunnel; $1 = timeout in seconds
+  curl -fsS -m "${1:-10}" -o /dev/null "http://127.0.0.1:$CREW_LMSTUDIO_TUNNEL_PORT/v1/models" 2>/dev/null
+}
+
 crew_space() {
   herdr workspace get "${HERDR_WORKSPACE_ID:?not inside a herdr pane}" 2>/dev/null | python3 -I -c '
 import json,re,sys

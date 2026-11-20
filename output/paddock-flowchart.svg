@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="1900" viewBox="0 0 1120 1900">
+<title>Paddock T3 crew: instruction, code and process review</title>
+<desc>Onboard approved resources, clarify instructions, build and verify, then obtain separate code and process reviews. Errors and missing data are never success.</desc>
+<rect width="1120" height="1900" fill="white"/>
+<text x="60" y="65" fill="#172b44" font-family="Arial, sans-serif" font-size="44" font-weight="700" dominant-baseline="central" text-anchor="start">PADDOCK</text>
+<text x="60" y="115" fill="#586b85" font-family="Arial, sans-serif" font-size="29" font-weight="400" dominant-baseline="central" text-anchor="start">How a request becomes an evidence-backed result</text>
+<text x="60" y="160" fill="#586b85" font-family="Arial, sans-serif" font-size="23" font-weight="400" dominant-baseline="central" text-anchor="start">T3 crew workflow · Coordinator judgment + explicit evidence checks</text>
+<rect x="60" y="210" width="1000" height="110" rx="18" fill="#ece7ff" stroke="#7762d5" stroke-width="3"/>
+<text x="84" y="244" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">1  You set the goal and boundaries</text>
+<text x="84" y="283" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Approved AI resources, scope, acceptance criteria and permitted actions.</text>
+<polyline points="560,320 560,355" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,355 568.0,338.0 552.0,338.0" fill="#45566e"/>
+<rect x="60" y="355" width="1000" height="140" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="84" y="389" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">2  Coordinator captures the plan</text>
+<text x="84" y="428" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Substantial or ambiguous work → fresh instruction adversary.</text>
+<text x="84" y="461" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Resolve contradictions and define what evidence will count as success.</text>
+<polyline points="560,495 560,530" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,530 568.0,513.0 552.0,513.0" fill="#45566e"/>
+<rect x="60" y="530" width="1000" height="110" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="84" y="564" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">3  Coordinator builds or delegates</text>
+<text x="84" y="603" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Small task → current session. Larger task → one bounded builder.</text>
+<polyline points="560,640 560,680" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,680 568.0,663.0 552.0,663.0" fill="#45566e"/>
+<polygon points="560,680 750,755 560,830 370,755" fill="#fff4d6" stroke="#d49408" stroke-width="3"/>
+<text x="560" y="739.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">Approved, available</text>
+<text x="560" y="771.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">provider binding?</text>
+<polyline points="750,755 820,755" fill="none" stroke="#c94b38" stroke-width="3"/>
+<polygon points="820,755 803.0,747.0 803.0,763.0" fill="#c94b38"/>
+<text x="775" y="729" fill="#c94b38" font-family="Arial, sans-serif" font-size="22" font-weight="700" dominant-baseline="central" text-anchor="start">No</text>
+<rect x="820" y="687" width="250" height="135" rx="18" fill="#ffebe6" stroke="#c94b38" stroke-width="3"/>
+<text x="844" y="721" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Stop dispatch</text>
+<text x="844" y="760" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Explain the gap.</text>
+<text x="844" y="793" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">No silent fallback.</text>
+<polyline points="560,830 560,870" fill="none" stroke="#23865e" stroke-width="3"/>
+<polygon points="560,870 568.0,853.0 552.0,853.0" fill="#23865e"/>
+<text x="580" y="851" fill="#23865e" font-family="Arial, sans-serif" font-size="21" font-weight="700" dominant-baseline="central" text-anchor="start">Yes</text>
+<rect x="60" y="870" width="1000" height="110" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="84" y="904" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">4  Build → integrate → run actual project checks</text>
+<text x="84" y="943" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Keep command output, test counts, failures and host receipts.</text>
+<polyline points="560,980 560,1020" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,1020 568.0,1003.0 552.0,1003.0" fill="#45566e"/>
+<polygon points="560,1020 750,1095 560,1170 370,1095" fill="#fff4d6" stroke="#d49408" stroke-width="3"/>
+<text x="560" y="1079.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">Verification</text>
+<text x="560" y="1111.0" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">complete?</text>
+<polyline points="750,1095 820,1095" fill="none" stroke="#c94b38" stroke-width="3"/>
+<polygon points="820,1095 803.0,1087.0 803.0,1103.0" fill="#c94b38"/>
+<text x="775" y="1069" fill="#c94b38" font-family="Arial, sans-serif" font-size="22" font-weight="700" dominant-baseline="central" text-anchor="start">No</text>
+<rect x="820" y="1027" width="250" height="135" rx="18" fill="#ffebe6" stroke="#c94b38" stroke-width="3"/>
+<text x="844" y="1061" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Repair / report</text>
+<text x="844" y="1100" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Missing evidence</text>
+<text x="844" y="1133" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">stays incomplete.</text>
+<polyline points="560,1170 560,1210" fill="none" stroke="#23865e" stroke-width="3"/>
+<polygon points="560,1210 568.0,1193.0 552.0,1193.0" fill="#23865e"/>
+<text x="580" y="1191" fill="#23865e" font-family="Arial, sans-serif" font-size="21" font-weight="700" dominant-baseline="central" text-anchor="start">Yes</text>
+<rect x="60" y="1210" width="1000" height="100" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="84" y="1244" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">5  Freeze source + create an evidence packet</text>
+<text x="84" y="1283" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Bind source, original requirements, checks, receipts and proposed claims.</text>
+<polyline points="560,1310 560,1340 300,1340 300,1370" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="300,1370 308.0,1353.0 292.0,1353.0" fill="#45566e"/>
+<polyline points="560,1340 820,1340 820,1370" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="820,1370 828.0,1353.0 812.0,1353.0" fill="#45566e"/>
+<rect x="60" y="1370" width="480" height="150" rx="18" fill="#e3f5eb" stroke="#23865e" stroke-width="3"/>
+<text x="84" y="1404" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Fresh code reviewer</text>
+<text x="84" y="1443" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Is the implementation correct?</text>
+<text x="84" y="1476" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Does it meet the requirements?</text>
+<rect x="580" y="1370" width="480" height="150" rx="18" fill="#ece7ff" stroke="#7762d5" stroke-width="3"/>
+<text x="604" y="1404" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">Separate process adversary</text>
+<text x="604" y="1443" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Did the agent follow instructions?</text>
+<text x="604" y="1476" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Does evidence support its claims?</text>
+<polyline points="300,1520 300,1550 560,1550 560,1580" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,1580 568.0,1563.0 552.0,1563.0" fill="#45566e"/>
+<polyline points="820,1520 820,1550 560,1550" fill="none" stroke="#45566e" stroke-width="3"/>
+<polygon points="560,1550 577.0,1558.0 577.0,1542.0" fill="#45566e"/>
+<rect x="60" y="1580" width="1000" height="140" rx="18" fill="#e0ecff" stroke="#3076df" stroke-width="3"/>
+<text x="84" y="1614" fill="#172b44" font-family="Arial, sans-serif" font-size="27" font-weight="700" dominant-baseline="central" text-anchor="start">6  Resolve findings and audit the records</text>
+<text x="84" y="1653" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Repair → new packet + fresh reviews. At most two automatic repair rounds.</text>
+<text x="84" y="1686" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Unresolved findings → return to you with evidence.</text>
+<polyline points="560,1720 560,1755" fill="none" stroke="#23865e" stroke-width="3"/>
+<polygon points="560,1755 568.0,1738.0 552.0,1738.0" fill="#23865e"/>
+<rect x="60" y="1755" width="1000" height="75" rx="18" fill="#e3f5eb" stroke="#23865e" stroke-width="3"/>
+<text x="560" y="1793" fill="#172b44" font-family="Arial, sans-serif" font-size="26" font-weight="700" dominant-baseline="central" text-anchor="middle">Report: checks · reviews · host controls · CI · deployment</text>
+<text x="60" y="1864" fill="#586b85" font-family="Arial, sans-serif" font-size="24" font-weight="400" dominant-baseline="central" text-anchor="start">Complete records are not proof of correctness or enforced permissions.</text>
+</svg>

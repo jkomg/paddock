@@ -168,6 +168,36 @@ class Package(unittest.TestCase):
             self.assertNotEqual(self.call('--skills-dir', dest, mode, '--apply', script=INSTALL).returncode, 0)
             self.assertEqual(f.read_text(), 'Local change')
 
+    def test_installed_skill_creates_and_verifies_project(self):
+        dest = self.base / 'installed skills'
+        r = self.call('--skills-dir', dest, '--apply', script=INSTALL)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        installed = dest / 'paddock-crew/scripts/paddock.py'
+        r = self.call('project', self.project, '--crew', self.config, '--new', '--apply', script=installed)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        runner = self.project / '.paddock/paddock.py'
+        # The copied project runner and adapter must work independently of the skill.
+        r = self.call('--skills-dir', dest, '--uninstall', '--apply', script=INSTALL)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        write(self.base / 'request.md', 'Verify the installed project starter.')
+        write(self.base / 'contract.md', 'Run a real unit test; report unbound providers.')
+        self.unittest_check('import unittest\nclass Example(unittest.TestCase):\n'
+                            ' def test_sum(self): self.assertEqual(sum([2, 3]), 5)\n')
+        r = self.call('task', '--project', self.project, '--task', 'installed',
+                      '--request', self.base / 'request.md', '--contract', self.base / 'contract.md', script=runner)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        r = self.call('verify', '--project', self.project, '--task', 'installed', script=runner)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        result = json.loads(r.stdout)
+        self.assertEqual(result['status'], 'verified')
+        self.assertEqual(result['checks'][0]['counts']['passed'], 1)
+        r = self.call('doctor', '--project', self.project, script=runner)
+        self.assertEqual(r.returncode, 1)
+        self.assertEqual(json.loads(r.stdout)['crew'], 'unbound')
+        r = self.call('audit', '--project', self.project, '--task', 'installed', script=runner)
+        self.assertEqual(r.returncode, 1)
+        self.assertFalse(json.loads(r.stdout)['evidence_complete'])
+
     def test_symlink_adoption_refuses_without_writing(self):
         self.project.mkdir()
         subprocess.run(['git', 'init', str(self.project)], check=True, capture_output=True)
