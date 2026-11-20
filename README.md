@@ -16,8 +16,9 @@ account juggling is needed.
 
 - **Real checks, not claims.** A task counts as verified only when your project's actual
   tests ran and passed. Skipped tests, no tests, timeouts and "exit code 0" don't count.
-- **Independent reviews.** A fresh code reviewer and a separate process reviewer check the
-  work in their own sessions. The process reviewer looks for claims the evidence doesn't
+- **Independent reviews.** Paddock splits the work into four roles: a coordinator (your T3
+  session), a builder, a code reviewer and a process reviewer. The two reviewers check the
+  work in their own fresh sessions. The process reviewer looks for claims the evidence doesn't
   support, missing results and ignored instructions.
 - **Honest reports.** Checks, each review and anything unknown are reported separately.
   Gaps stay marked as gaps.
@@ -37,6 +38,14 @@ You need [T3 Code](https://t3.codes/download) signed in to Claude or ChatGPT/Cod
 [Git](https://git-scm.com/install/). New to all of this? Follow the step-by-step
 [setup guide](t3/SETUP-GUIDE.md) instead.
 
+Check first: `python --version` should print 3.11 or newer and `git --version` should print
+a version. On Windows, if the Microsoft Store opens instead, Python isn't installed yet. If
+`py --version` works, use `py` in place of `python`. On macOS and Linux use `python3`.
+
+Pick the skills folder for the assistant you use in T3: `$HOME/.codex/skills` for
+ChatGPT/Codex, or `$HOME/.claude/skills` for Claude. Using both? Install into both. If
+T3's provider settings show a custom home folder, use the `skills` folder inside it.
+
 **Windows (PowerShell):**
 
 ```powershell
@@ -55,9 +64,15 @@ python3 t3/install.py --skills-dir "$HOME/.codex/skills"          # preview
 python3 t3/install.py --skills-dir "$HOME/.codex/skills" --apply  # install
 ```
 
-For Claude, use `$HOME/.claude/skills` instead. If T3's provider settings show a custom
-Codex or Claude home folder, use the `skills` folder inside it. The installer changes
-nothing outside that folder and needs no administrator rights or extra packages.
+The preview lists what would be written and changes nothing. Then confirm the install:
+
+```sh
+python "$HOME/.codex/skills/paddock-crew/scripts/paddock.py" --version   # prints 0.2.0-preview
+```
+
+The installer changes nothing outside the skills folder and needs no administrator rights
+or extra packages. If T3 later can't find Paddock, the skills folder probably doesn't match
+the one T3 uses; run the installer again with the right folder.
 
 ## First use
 
@@ -74,14 +89,16 @@ Then give it a small real task. The setup guide has
 
 ## Update or remove
 
-```sh
+From the `paddock` folder, using the same skills folder as before (`python3` on macOS and
+Linux):
+
+```powershell
 git pull
-python3 t3/install.py --skills-dir "$HOME/.codex/skills" --upgrade --apply
-python3 t3/install.py --skills-dir "$HOME/.codex/skills" --uninstall --apply
+python t3/install.py --skills-dir "$HOME/.codex/skills" --upgrade --apply
+python t3/install.py --skills-dir "$HOME/.codex/skills" --uninstall --apply
 ```
 
-Use `python` on Windows. Leave off `--apply` to preview first. Removing the skill doesn't
-touch your projects.
+Leave off `--apply` to preview first. Removing the skill doesn't touch your projects.
 
 ## More
 
