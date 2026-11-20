@@ -22,9 +22,11 @@ From a repository checkout, use `-s t3/tests`; the guard suite is `-s llm-profil
 
 Every change reaches `main` through a pull request; a repository ruleset requires the
 macOS, Ubuntu and native Windows jobs to pass and review threads to be resolved, and
-blocks force-pushes and branch deletion. Each job runs the package and guard suites and
-the tests from the extracted installer archive; the Windows job also runs the PowerShell
-installer test.
+blocks force-pushes and branch deletion. All three jobs run the T3 package suite and the
+tests from the extracted installer archive. The macOS and Ubuntu jobs also run the full
+legacy guard suite (`llm-profiles/tests`) and shell syntax checks. The Windows job runs
+only the guard's portable install and hook tests (`test_install_portable.py`), plus the
+PowerShell installer test.
 
 [GitHub Actions run 44787768926](https://github.com/jkomg/paddock/actions/runs/44787768926)
 passed on 2026-11-20 for `main` at commit `23fdfefff45a3bccf3a15e1e175d2515894bb545`, which
