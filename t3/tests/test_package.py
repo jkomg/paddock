@@ -540,6 +540,27 @@ class Package(unittest.TestCase):
         stored = ''.join(p.read_text() for p in (self.project / '.paddock/runs/.incidents').iterdir())
         self.assertNotIn(self.FAKE_KEY, stored)
 
+    def test_changed_or_missing_rotation_evidence_reopens_the_incident(self):
+        self.init()
+        iid = json.loads(self.secret('open', '--kind', 'API key', '--where', 'chat').stdout)['incident']['id']
+        clean = self.base / 'revoked.txt'; write(clean, 'old key deleted')
+        r = self.secret('close', '--id', iid, '--verification', 'issuer_shows_revoked', '--evidence', clean,
+                        '--replacement', 'secure_entry')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.secret('status').returncode, 0)
+        folder = self.project / '.paddock/runs/.incidents'
+        evidence, record = folder / (iid + '-evidence.txt'), folder / (iid + '.json')
+        task = lambda: self.call('task', '--project', self.project, '--task', 'two',
+                                 '--request', self.base / 'request.md', '--contract', self.base / 'contract.md')
+        evidence.write_text('edited after closing')
+        r = task(); self.assertEqual(r.returncode, 2); self.assertIn('missing or changed', r.stderr)
+        evidence.unlink()
+        self.assertEqual(self.secret('status').returncode, 1)
+        evidence.write_text('old key deleted')   # the original bytes restore the closure
+        self.assertEqual(self.secret('status').returncode, 0)
+        rec = load(record); rec['assurance'] = 'verified'; rec['verification'] = 'user_attested'; write(record, rec)
+        self.assertEqual(task().returncode, 2)
+
     def test_packet_refuses_evidence_containing_a_credential(self):
         self.init()
         self.unittest_check('import unittest\nclass E(unittest.TestCase):\n def test_a(self): self.assertTrue(True)\n')

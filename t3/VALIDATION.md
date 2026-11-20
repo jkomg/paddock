@@ -67,6 +67,7 @@ names a test that does not exist.
 | Installed skill creates a project whose runner works after skill removal; missing reviews remain incomplete | `test_installed_skill_creates_and_verifies_project` |
 | An open exposed-credential incident blocks task, verify, packet, audit and doctor | `test_open_credential_incident_blocks_task_work` |
 | An incident closes only with secret-free evidence (verified) or the user's statement (attested), and never stores the value | `test_incident_closes_only_with_clean_evidence_or_a_statement` |
+| A closed incident reopens if its rotation evidence is missing or changed, or its record is inconsistent | `test_changed_or_missing_rotation_evidence_reopens_the_incident` |
 | A review packet is refused when its evidence contains a likely credential | `test_packet_refuses_evidence_containing_a_credential` |
 | The credential scan flags key and password shapes but not code or placeholders | `test_secret_scan_flags_credentials_but_not_code_or_placeholders` |
 

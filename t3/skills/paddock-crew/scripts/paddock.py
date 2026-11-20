@@ -372,12 +372,40 @@ def incidents(root):
     return [read(p) for p in sorted(d.glob("sec-*.json"))] if d.is_dir() else []
 
 
+def closure_problem(root, rec):
+    """Why a closed incident's record does not support its closure, or None. Fail closed: a
+    missing or changed evidence file, or an incomplete record, reopens the incident."""
+    how, assurance = rec.get("verification"), rec.get("assurance")
+    expected = {"issuer_shows_revoked": "verified", "old_rejected": "verified",
+                "user_attested": "user_attested", "false_positive": "not_a_credential"}
+    if expected.get(how) is None or assurance != expected[how]:
+        return "closure record is incomplete or inconsistent"
+    if how in VERIFIED:
+        if rec.get("evidence") != rec.get("id", "") + "-evidence.txt" or not rec.get("evidence_sha256"):
+            return "closure names no evidence"
+        ev = incident_dir(root) / rec["evidence"]
+        if not ev.is_file() or sha(ev.read_bytes()) != rec["evidence_sha256"]:
+            return "rotation evidence is missing or changed"
+    elif not (rec.get("statement") or "").strip():
+        return "closure has no statement"
+    if how != "false_positive" and rec.get("replacement") is None:
+        return "closure does not record the replacement"
+    return None
+
+
 def open_incidents(root):
-    return [i for i in incidents(root) if i.get("status") != "closed"]
+    """Incidents not validly closed: still open, or closed on records that no longer hold up."""
+    out = []
+    for i in incidents(root):
+        why = "open" if i.get("status") != "closed" else closure_problem(root, i)
+        if why:
+            out.append(dict(i, unresolved=why))
+    return out
 
 
 def require_no_open_incident(root):
-    ids = [i.get("id", "?") for i in open_incidents(root)]
+    ids = [i.get("id", "?") + ("" if i["unresolved"] == "open" else " (" + i["unresolved"] + ")")
+           for i in open_incidents(root)]
     if ids:
         fail("Exposed-credential incident open (" + ", ".join(ids) + "). Work stays stopped until the "
              "credential is rotated and `paddock.py secret close` records the evidence")
@@ -441,10 +469,10 @@ def secret_close(args):
 
 def secret_status(args):
     root = project_root(args.project)
-    all_ = incidents(root)
-    still = [i for i in all_ if i.get("status") != "closed"]
+    still = open_incidents(root)
+    unresolved = {i["id"] for i in still}
     emit({"open": still, "closed": [{k: i.get(k) for k in ("id", "kind", "assurance", "closed_at")}
-                                    for i in all_ if i.get("status") == "closed"]})
+                                    for i in incidents(root) if i.get("id") not in unresolved]})
     return 1 if still else 0
 
 
@@ -706,7 +734,8 @@ def audit(args):
         reviews[kind] = r.get("status", "pending")
     still = attempt(errors, "Cannot read credential incidents", open_incidents, root) or []
     if still:
-        errors.append("Exposed-credential incident open: " + ", ".join(i.get("id", "?") for i in still))
+        errors.append("Exposed-credential incident open: " + ", ".join(
+            i.get("id", "?") + ("" if i["unresolved"] == "open" else " (" + i["unresolved"] + ")") for i in still))
     if len(ids) == 2 and ids[0] == ids[1]:
         errors.append("Code reviewer and process adversary must be separate fresh sessions")
     controls = host.get("controls_state")
