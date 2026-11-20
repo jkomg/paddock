@@ -1,4 +1,4 @@
-# Preview validation — 0.2.0-preview, 2026-11-20
+# Preview validation — 0.2.1-preview, 2026-11-20
 
 This is a public preview, not a claim of complete cross-platform host validation.
 
@@ -30,7 +30,7 @@ PowerShell installer test.
 
 [GitHub Actions run 44787768926](https://github.com/jkomg/paddock/actions/runs/44787768926)
 passed on 2026-11-20 for `main` at commit `23fdfefff45a3bccf3a15e1e175d2515894bb545`, which
-includes the credential stop and the installed-copy smoke test. The 0.2.0 version bump
+includes the credential stop and the installed-copy smoke test. Later version bumps
 and these documentation edits run in their own pull request's CI.
 
 This verifies committed code, not real signed-in T3 integration.
@@ -64,6 +64,7 @@ names a test that does not exist.
 | A builder, or one session in two roles, cannot fill the review roles | `test_builder_or_same_session_cannot_fill_final_review_roles` |
 | A changed contract invalidates the instruction review | `test_changed_contract_invalidates_instruction_review` |
 | Windows-anchored paths are refused on every platform | `test_windows_anchored_receipt_paths_rejected_on_every_platform` |
+| Every T3 provider instance is listed, usable or not with its reason, and a non-default instance ID binds | `test_providers_lists_every_instance_and_binds_a_non_default_id` |
 | Roles stay unbound until bound to a live, approved instance | `test_interview_records_unbound_roles`, `test_route_requires_explicit_binding_and_live_provider` |
 | Installation previews, upgrades, uninstalls, and refuses local changes | `test_install_preview_upgrade_and_uninstall`, `test_installer_refuses_local_changes` |
 | Installed skill creates a project whose runner works after skill removal; missing reviews remain incomplete | `test_installed_skill_creates_and_verifies_project` |

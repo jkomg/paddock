@@ -9,7 +9,7 @@ It's for individuals and teams who want AI-written changes they can trust withou
 watching every step. One approved AI account is enough. No local model, extra service or
 account juggling is needed.
 
-**Status:** public preview, version 0.2.0. Tested on macOS, Linux and Windows in CI; see
+**Status:** public preview, version 0.2.1. Tested on macOS, Linux and Windows in CI; see
 [what has and hasn't been verified](t3/VALIDATION.md).
 
 ## What you get
@@ -67,7 +67,7 @@ python3 t3/install.py --skills-dir "$HOME/.codex/skills" --apply  # install
 The preview lists what would be written and changes nothing. Then confirm the install:
 
 ```sh
-python "$HOME/.codex/skills/paddock-crew/scripts/paddock.py" --version   # prints 0.2.0-preview
+python "$HOME/.codex/skills/paddock-crew/scripts/paddock.py" --version   # prints 0.2.1-preview
 ```
 
 The installer changes nothing outside the skills folder and needs no administrator rights

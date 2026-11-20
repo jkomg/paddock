@@ -1,4 +1,4 @@
-# Paddock T3 Crew — public preview (0.2.0)
+# Paddock T3 Crew — public preview (0.2.1)
 
 One company, one or more approved AI resources, one coordinator, a builder, fresh
 code review, and an independent instruction/process adversary. No herdr, Make,
@@ -90,6 +90,7 @@ separate user action. No session needs a permanently running crew pane.
 The CLI alternative uses the installed skill's `scripts/paddock.py`:
 
 ```sh
+python scripts/paddock.py providers --catalog capabilities.json   # T3 orchestrator_capabilities, saved
 python scripts/paddock.py interview --output crew.json --apply
 python scripts/paddock.py project /path/to/new-repo --crew crew.json --new
 python scripts/paddock.py project /path/to/new-repo --crew crew.json --new --apply
