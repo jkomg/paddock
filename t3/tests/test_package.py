@@ -487,6 +487,104 @@ class Package(unittest.TestCase):
         self.assertEqual(compared['contract_digest'], self.packet_info['contract_digest'])
         self.assertEqual(compared['source_digest'], load(self.rd / 'packet.json')['source_digest'])
 
+    # Fake credentials are assembled at runtime so no key-shaped string is committed.
+    FAKE_KEY = 'sk-' + 'Zq7' * 12 + 'Wx9L'
+
+    def secret(self, *args):
+        return self.call('secret', *args[:1], '--project', self.project, *args[1:])
+
+    def test_open_credential_incident_blocks_task_work(self):
+        self.prepare_packet(); self.reviews()
+        self.assertEqual(self.audit().returncode, 0)
+        r = self.secret('open', '--kind', 'LiteLLM API key', '--where', 'T3 chat', '--hint', 'Wx9L')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        incident = json.loads(r.stdout)['incident']
+        self.assertNotIn(self.FAKE_KEY, json.dumps(incident))
+        for args in (('verify', '--project', self.project, '--task', 'one'),
+                     ('packet', '--project', self.project, '--task', 'one'),
+                     ('task', '--project', self.project, '--task', 'two',
+                      '--request', self.base / 'request.md', '--contract', self.base / 'contract.md')):
+            r = self.call(*args)
+            self.assertEqual(r.returncode, 2, args[0])
+            self.assertIn(incident['id'], r.stderr)
+        r = self.audit()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertTrue(any('Exposed-credential incident open' in e for e in json.loads(r.stdout)['errors']))
+        self.assertNotEqual(self.call('doctor', '--project', self.project).returncode, 0)
+        self.assertEqual(self.secret('status').returncode, 1)
+        self.assertFalse((self.rd / 'two').exists())
+
+    def test_incident_closes_only_with_clean_evidence_or_a_statement(self):
+        self.init()
+        self.assertNotEqual(self.secret('open', '--kind', 'key ' + self.FAKE_KEY, '--where', 'chat').returncode, 0)
+        self.assertNotEqual(self.secret('open', '--kind', 'key', '--where', 'chat', '--hint', self.FAKE_KEY).returncode, 0)
+        ids = [json.loads(self.secret('open', '--kind', 'API key', '--where', 'chat').stdout)['incident']['id']
+               for _ in range(2)]
+        close = lambda i, *a: self.secret('close', '--id', i, *a)
+        self.assertNotEqual(close(ids[0], '--verification', 'issuer_shows_revoked', '--replacement', 'secure_entry').returncode, 0)
+        leaky = self.base / 'leaky.txt'; write(leaky, 'HTTP 401 for key ' + self.FAKE_KEY)
+        r = close(ids[0], '--verification', 'old_rejected', '--evidence', leaky, '--replacement', 'secure_entry')
+        self.assertNotEqual(r.returncode, 0); self.assertNotIn(self.FAKE_KEY, r.stderr)
+        self.assertNotEqual(close(ids[0], '--verification', 'user_attested', '--replacement', 'os_keychain').returncode, 0)
+        clean = self.base / 'revoked.txt'; write(clean, 'Key list: old key (ending Wx9L) deleted 14:05')
+        r = close(ids[0], '--verification', 'issuer_shows_revoked', '--evidence', clean, '--replacement', 'secure_entry')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(json.loads(r.stdout)['incident']['assurance'], 'verified')
+        self.assertEqual(self.secret('status').returncode, 1)   # the second is still open
+        r = close(ids[1], '--verification', 'user_attested', '--statement', 'Rotated it in the portal',
+                  '--replacement', 'os_keychain')
+        self.assertEqual(json.loads(r.stdout)['incident']['assurance'], 'user_attested')
+        self.assertEqual(self.secret('status').returncode, 0)
+        self.assertNotEqual(close(ids[1], '--verification', 'user_attested', '--statement', 'again',
+                                  '--replacement', 'os_keychain').returncode, 0)
+        stored = ''.join(p.read_text() for p in (self.project / '.paddock/runs/.incidents').iterdir())
+        self.assertNotIn(self.FAKE_KEY, stored)
+
+    def test_changed_or_missing_rotation_evidence_reopens_the_incident(self):
+        self.init()
+        iid = json.loads(self.secret('open', '--kind', 'API key', '--where', 'chat').stdout)['incident']['id']
+        clean = self.base / 'revoked.txt'; write(clean, 'old key deleted')
+        r = self.secret('close', '--id', iid, '--verification', 'issuer_shows_revoked', '--evidence', clean,
+                        '--replacement', 'secure_entry')
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.secret('status').returncode, 0)
+        folder = self.project / '.paddock/runs/.incidents'
+        evidence, record = folder / (iid + '-evidence.txt'), folder / (iid + '.json')
+        task = lambda: self.call('task', '--project', self.project, '--task', 'two',
+                                 '--request', self.base / 'request.md', '--contract', self.base / 'contract.md')
+        evidence.write_text('edited after closing')
+        r = task(); self.assertEqual(r.returncode, 2); self.assertIn('missing or changed', r.stderr)
+        evidence.unlink()
+        self.assertEqual(self.secret('status').returncode, 1)
+        evidence.write_text('old key deleted')   # the original bytes restore the closure
+        self.assertEqual(self.secret('status').returncode, 0)
+        rec = load(record); rec['assurance'] = 'verified'; rec['verification'] = 'user_attested'; write(record, rec)
+        self.assertEqual(task().returncode, 2)
+
+    def test_packet_refuses_evidence_containing_a_credential(self):
+        self.init()
+        self.unittest_check('import unittest\nclass E(unittest.TestCase):\n def test_a(self): self.assertTrue(True)\n')
+        self.assertEqual(self.verify().returncode, 0)
+        write(self.rd / 'claims.md', 'Configured the gateway with api_key=' + self.FAKE_KEY)
+        write(self.rd / 'evidence/builder.json', {'session': 'builder'})
+        write(self.rd / 'host.json', {'builder_session_ids': ['builder'], 'controls_state': 'unknown',
+                                    'receipts': ['evidence/builder.json']})
+        r = self.call('packet', '--project', self.project, '--task', 'one')
+        self.assertEqual(r.returncode, 2)
+        self.assertIn('claims.md', r.stderr); self.assertNotIn(self.FAKE_KEY, r.stderr)
+        self.assertFalse((self.rd / 'packet.json').exists())
+
+    def test_secret_scan_flags_credentials_but_not_code_or_placeholders(self):
+        text = '\n'.join(['key: ' + self.FAKE_KEY, 'url = https://app:Pw' + '4x' * 5 + '@db.example/x',
+                          'token = args.token', "password = os.environ['PW']", 'api_key: <YOUR_KEY>',
+                          'export OPENAI_API_KEY=$OPENAI_API_KEY', 'password: changeme'])
+        r = self.call('secret', 'scan', '-', input=text)
+        self.assertEqual(r.returncode, 1)
+        found = json.loads(r.stdout)['findings']
+        self.assertEqual([f['line'] for f in found], [1, 2])
+        self.assertNotIn(self.FAKE_KEY, r.stdout)
+        self.assertEqual(self.call('secret', 'scan', '-', input='nothing to see\n').returncode, 0)
+
     def test_validation_claims_name_real_tests(self):
         # Each claim in VALIDATION.md names the test that proves it; a renamed or deleted
         # test makes the claim unproven, and this test fails.

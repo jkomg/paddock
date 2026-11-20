@@ -4,6 +4,14 @@ Read existing project instructions before these rules. Preserve the user's task 
 existing authorization. This process does not grant publishing, deployment, credential
 changes, or extra access. The current project thread owns coordination and integration.
 
+- **Exposed credentials stop the work.** A password, API key, token, private key or similar
+  seen in chat, a file, output, logs or evidence is compromised. Stop at once, never repeat
+  it (name its kind and at most its last 4 characters), and tell the user. Run
+  `paddock.py secret open`, then walk the user through revoking and replacing it, running the
+  steps you can for them. Never ask for the new value in chat. Resume only after
+  `paddock.py secret close` records evidence such as the issuer showing the old one revoked.
+  The user's word alone counts as attested, not verified. Task commands refuse to run
+  while an incident is open. Never work around that.
 - Use the installed `paddock-crew` skill when available. Otherwise follow these rules
   with the host's supported subagent tools; never invent tool availability or reviews.
 - Single-company default. `.paddock/crew.json` maps roles to explicitly approved T3
