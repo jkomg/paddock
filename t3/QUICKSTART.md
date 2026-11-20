@@ -1,4 +1,4 @@
-# Paddock T3 Crew — public preview
+# Paddock T3 Crew — public preview (0.2.0)
 
 One company, one or more approved AI resources, one coordinator, a builder, fresh
 code review, and an independent instruction/process adversary. No herdr, Make,
@@ -10,8 +10,8 @@ bindings, or model runtimes.
 ## Which package to share
 
 Send coworkers the **installer ZIP** and `SHA256SUMS` from the same build. It includes
-this guide, a step-by-step `SETUP-GUIDE.md` for first-time users, the installer,
-tests, license and workflow diagram. Extract the ZIP and
+this guide, a step-by-step `SETUP-GUIDE.md` for first-time users, `CHANGELOG.md`, the
+installer, tests, license and workflow diagram. Extract the ZIP and
 open a terminal in the extracted `paddock-t3-VERSION` folder before installing.
 The smaller skill ZIP is for manual installation only; do not install both.
 Coworkers do not need this repository or the legacy herdr/account-guard setup.
@@ -119,6 +119,32 @@ On Windows use `python` instead of `python3`. Upgrade uses the new package's ins
 uninstall removes the managed skill only. Neither updates nor removes `.paddock`
 files already copied into projects. Those files need a deliberate project update.
 If local modifications are reported, preserve and reconcile them before retrying.
+
+## Exposed credentials
+
+Paddock treats any password, API key, token or private key that appears in chat, a
+file, tool output or evidence as compromised. The agent stops, never repeats the value,
+tells you what was exposed and where, and walks you through revoking it and creating a
+replacement. It runs the steps it can for you and never asks for the new value in chat.
+
+The project CLI enforces the stop:
+
+```sh
+python3 .paddock/paddock.py secret open --kind "LiteLLM API key" --where "T3 chat" --hint x7Qa
+python3 .paddock/paddock.py secret status
+python3 .paddock/paddock.py secret close --id <ID> --verification issuer_shows_revoked \
+  --evidence revoked.txt --replacement secure_entry
+python3 .paddock/paddock.py secret scan notes.md
+```
+
+While an incident is open, `task`, `verify` and `packet` refuse to run, and `audit` and
+`doctor` fail. Closing it with secret-free evidence, such as the issuer showing the old key
+revoked or a rejected request, records it as verified. Your statement alone records it as
+user-attested, and the final report says so. A closed incident reopens if its evidence file
+is deleted or changed. `packet` refuses evidence that looks like it contains a credential.
+
+The scan matches patterns, so it can miss secrets. Nothing intercepts a message before the
+model reads it; spotting a pasted credential is the agent's job under the project rules.
 
 ## What the adversary does
 

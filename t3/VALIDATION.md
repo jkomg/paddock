@@ -1,4 +1,4 @@
-# Preview validation — 2026-11-13
+# Preview validation — 0.2.0-preview, 2026-11-20
 
 This is a public preview, not a claim of complete cross-platform host validation.
 
@@ -20,18 +20,20 @@ From a repository checkout, use `-s t3/tests`; the guard suite is `-s llm-profil
 
 ## Hosted platform checks
 
-[GitHub Actions run 42961880456](https://github.com/jkomg/paddock/actions/runs/42961880456)
-passed on 2026-11-11 for commit `679ef7ac6a5f8309f4e1cd9f9493e54c1a8344a0`.
-Its macOS, Ubuntu and native Windows jobs passed, including package tests and tests
-from extracted installer archives. The Windows job also executed the PowerShell
-installer test. This verifies that committed baseline, not subsequent local edits
-or real signed-in T3 integration.
+Every change reaches `main` through a pull request; a repository ruleset requires the
+macOS, Ubuntu and native Windows jobs to pass and review threads to be resolved, and
+blocks force-pushes and branch deletion. All three jobs run the T3 package suite and the
+tests from the extracted installer archive. The macOS and Ubuntu jobs also run the full
+legacy guard suite (`llm-profiles/tests`) and shell syntax checks. The Windows job runs
+only the guard's portable install and hook tests (`test_install_portable.py`), plus the
+PowerShell installer test.
 
-The 2026-11-13 coworker-readiness pass adds an installed-copy smoke test: install in
-a path with spaces, create a project using the installed CLI, uninstall the skill,
-then execute a real unittest through the project's copied runner and adapter.
-Unbound providers and missing reviews must still report incomplete. This new test
-is validated locally on macOS; it has not yet run in hosted CI.
+[GitHub Actions run 44787768926](https://github.com/jkomg/paddock/actions/runs/44787768926)
+passed on 2026-11-20 for `main` at commit `23fdfefff45a3bccf3a15e1e175d2515894bb545`, which
+includes the credential stop and the installed-copy smoke test. The 0.2.0 version bump
+and these documentation edits run in their own pull request's CI.
+
+This verifies committed code, not real signed-in T3 integration.
 
 ## Claims and the tests that prove them
 
@@ -86,8 +88,9 @@ unittest adapter and package tests. This is scoped review, not proof of correctn
 
 ## Still unverified
 
-- Native Windows/PowerShell and hosted CI execution of the 2026-11-13 local additions.
-- Branch-protection setup.
+- Credential detection in live chat. The rule depends on the agent recognising a pasted
+  credential; `secret scan` and the packet check are pattern matches that can miss one,
+  and nothing intercepts a message before the model reads it.
 - End-to-end T3 cross-provider dispatch, provider-specific skill loading, and actual
   host permission enforcement on recipients' machines.
 - A full multi-provider task with real signed-in identities and independent host receipts.
