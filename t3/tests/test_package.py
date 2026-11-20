@@ -133,6 +133,29 @@ class Package(unittest.TestCase):
         data = load(self.catalog); data['providers'][0]['canRunChildTask'] = False; write(self.catalog, data)
         self.assertNotEqual(self.call(*args).returncode, 0)
 
+    def test_providers_lists_every_instance_and_binds_a_non_default_id(self):
+        write(self.catalog, {'structuredContent': {'providers': [
+            {'providerInstanceId': 'codex', 'driverKind': 'codex', 'displayName': 'ChatGPT - Old',
+             'canRunChildTask': False, 'models': [], 'constraints': ['Provider instance is disabled.']},
+            {'providerInstanceId': 'codex_work', 'driverKind': 'codex', 'displayName': 'ChatGPT - Work',
+             'canRunChildTask': True, 'models': [{'id': 'test-model'}], 'omittedModels': 4, 'constraints': []},
+            {'providerInstanceId': 'opencode_work', 'driverKind': 'opencode', 'displayName': 'Gateway',
+             'canRunChildTask': True, 'models': [{'id': 'm'}], 'constraints': []}]}})
+        r = self.call('providers', '--catalog', self.catalog)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        rows = {row['instance']: row for row in json.loads(r.stdout)['providers']}
+        self.assertEqual(set(rows), {'codex', 'codex_work', 'opencode_work'})
+        self.assertEqual((rows['codex']['usable'], rows['codex']['constraints']), (False, ['Provider instance is disabled.']))
+        self.assertEqual((rows['codex_work']['resource'], rows['codex_work']['usable'], rows['codex_work']['models']), ('codex', True, 5))
+        self.assertIsNone(rows['opencode_work']['resource'])
+        bind = ('bind', '--crew', self.config, '--provider', 'codex', '--model', 'test-model',
+                '--catalog', self.catalog, '--confirm-approved-instance', '--apply')
+        self.assertNotEqual(self.call(*bind, '--instance', 'codex').returncode, 0)
+        self.assertEqual(self.call(*bind, '--instance', 'codex_work').returncode, 0)
+        self.assertEqual(load(self.config)['providers']['codex']['instance_id'], 'codex_work')
+        write(self.catalog, {'providers': []})
+        self.assertNotEqual(self.call('providers', '--catalog', self.catalog).returncode, 0)
+
     def test_preview_does_not_create_repo(self):
         self.assertEqual(self.call('project', self.project, '--crew', self.config, '--new').returncode, 0)
         self.assertFalse(self.project.exists())

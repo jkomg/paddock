@@ -14,7 +14,7 @@ import sys
 import time
 import uuid
 
-VERSION = "0.2.0-preview"
+VERSION = "0.2.1-preview"
 ROLES = ("coordinator", "builder", "reviewer", "adversary")
 PROVIDERS = ("claude", "codex", "gemini", "litellm", "cursor")
 MARKER = "<!-- paddock-crew -->"
@@ -170,6 +170,30 @@ def catalog_provider(path, instance, model):
     if model not in [m.get("id") for m in found[0].get("models", [])]:
         fail("Model not in supplied live catalog; expand host model search: " + model)
     return found[0]
+
+
+# T3 driver kinds and the resource each usually is. Instance IDs vary per user
+# (codex, codex_work, ...); match on the driver and display name, never the ID.
+DRIVER_RESOURCE = {"codex": "codex", "claudeAgent": "claude", "cursor": "cursor",
+                   "antigravity": "gemini", "gemini": "gemini"}
+
+
+def providers(args):
+    catalog = read(args.catalog)
+    catalog = catalog.get("structuredContent", catalog)
+    rows = []
+    for p in catalog.get("providers", []):
+        usable = p.get("canRunChildTask") is True
+        rows.append({"instance": p.get("providerInstanceId"), "driver": p.get("driverKind"),
+                     "name": p.get("displayName"), "resource": DRIVER_RESOURCE.get(p.get("driverKind")),
+                     "usable": usable, "models": len(p.get("models", [])) + (p.get("omittedModels") or 0),
+                     "constraints": p.get("constraints", [] if usable else ["not usable for child tasks"])})
+    if not rows:
+        fail("The catalog lists no providers; save the full orchestrator_capabilities response")
+    emit({"providers": rows, "note": "List every row to the user, usable or not, with its name and "
+          "constraints. resource is a guess from the driver (null: ask, e.g. OpenCode may be LiteLLM "
+          "or a local model). Bind by instance, not by resource name."})
+    return 0
 
 
 def ask(prompt):
@@ -777,6 +801,9 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("interview", allow_abbrev=False)
     p.add_argument("--output", required=True); p.add_argument("--apply", action="store_true")
+    p = sub.add_parser("providers", allow_abbrev=False,
+                       help="list every provider instance in a saved T3 capabilities snapshot")
+    p.add_argument("--catalog", required=True)
     p = sub.add_parser("bind", allow_abbrev=False)
     for name in ("crew", "provider", "instance", "model", "catalog"):
         p.add_argument("--" + name, required=True)
@@ -813,7 +840,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.cmd == "secret":
         return {"open": secret_open, "close": secret_close, "status": secret_status, "scan": secret_scan}[args.secret_cmd](args)
-    return {"interview": interview, "bind": bind, "route": route, "project": scaffold,
+    return {"interview": interview, "providers": providers, "bind": bind, "route": route, "project": scaffold,
             "task": task, "verify": verify, "packet": packet, "audit": audit, "doctor": doctor}[args.cmd](args)
 
 

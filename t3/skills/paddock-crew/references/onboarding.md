@@ -1,9 +1,21 @@
 # Initial interview and project setup
 
-Ask short questions, using known host context rather than asking for it again:
+Look before asking. Inside T3, call `orchestrator_capabilities` (tool prefixes vary),
+save its structured response as `capabilities.json`, and list it:
 
-1. Which resources does the company approve for this work? Claude, ChatGPT/Codex,
-   Gemini, LiteLLM, Cursor, or another resource? Which are signed in through T3?
+    python scripts/paddock.py providers --catalog capabilities.json
+
+T3 lists every configured provider instance. Match them by `driver` and display name,
+never by instance ID: IDs differ per machine (`codex`, `codex_work`, `claude_team`...),
+and the default-named instance may be the disabled one while another instance of the
+same driver is enabled. Show the user every row. For a row that isn't `usable`, give
+T3's constraint text (disabled, not installed, not signed in, or turned off in this
+project's settings even though it's on in Providers) instead of silently dropping it.
+
+Then ask short questions, using known host context rather than asking for it again:
+
+1. Which of these listed instances does the company approve for this work? Allow
+   resources T3 doesn't list, but they stay unbound until T3 shows them.
 2. Which should coordinate, build, review code, and act as the process adversary?
    Default to the same approved provider in fresh sessions; do not require a second
    subscription. The adversary must be a different session from the builder and
@@ -19,12 +31,12 @@ Without `--apply` it only prints the interview result. Resources start unbound. 
 subscription is not a confirmed account or a working T3 adapter. Gemini/LiteLLM may
 be exposed through different drivers; do not infer account ownership from a label.
 
-Inside T3, discover `orchestrator_capabilities` (tool prefixes vary) and save its
-structured response as a local JSON file. Only read capabilities; do not dispatch a
-smoke task until it falls within the user's approved setup/test scope. Confirm the
-specific company instance when ambiguous. Bind each resource using:
+Only read capabilities; do not dispatch a smoke task until it falls within the user's
+approved setup/test scope. Confirm the specific company instance when ambiguous (two
+Codex instances for two companies, say). Bind each resource to the `instance` value from
+`providers`, which need not equal the resource name:
 
-    python scripts/paddock.py bind --crew crew.json --provider codex --instance INSTANCE --model MODEL --catalog capabilities.json --confirm-approved-instance --apply
+    python scripts/paddock.py bind --crew crew.json --provider codex --instance codex_work --model MODEL --catalog capabilities.json --confirm-approved-instance --apply
 
 The CLI checks availability/model membership; the confirmation records the user's
 approval of that specific instance, not proof of its authenticated identity. Expand

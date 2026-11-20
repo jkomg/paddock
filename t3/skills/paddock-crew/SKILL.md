@@ -15,8 +15,11 @@ macOS/Linux. It never starts models or edits T3's private settings/database.
 
 ## Setup or a new project
 
-Read [onboarding](references/onboarding.md). Ask which company-approved resources
-are available: Claude, ChatGPT/Codex, Gemini, LiteLLM, Cursor; allow other answers.
+Read [onboarding](references/onboarding.md). Start from T3's live provider list, not
+a fixed name list: call `orchestrator_capabilities`, save it, run `paddock.py providers`
+and show the user **every** instance it lists, by display name, including ones whose ID
+isn't the default (a Codex instance may be `codex_work`, not `codex`) and ones T3 marks
+unusable, with T3's reason. Then ask which are company-approved; allow other answers.
 Distinguish available subscriptions from approved resources and working T3 adapters.
 Use supported host capability tools, map explicit instances/models, and leave
 unavailable resources unbound. Do not buy access, change credentials, enable a

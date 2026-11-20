@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1-preview — 2026-11-20
+
+- **Setup finds every T3 provider.** The interview now starts from T3's live provider
+  list instead of a fixed set of names. Previously an enabled provider whose instance ID
+  wasn't the default (for example a ChatGPT/Codex instance called `codex_work` next to a
+  disabled `codex`) could be left out. New `paddock.py providers --catalog FILE` lists
+  every instance with its display name, driver, model count and, for unusable ones, T3's
+  reason. Binding uses that instance ID.
+
 ## 0.2.0-preview — 2026-11-20
 
 - **Exposed credentials stop the work.** A password, API key, token or private key seen

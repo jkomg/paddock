@@ -289,6 +289,11 @@ unavailable connection and what still needs setup.
 
 ### Answer the interview
 
+The assistant first lists every provider T3 has, by the name shown in T3's Providers
+settings, including any T3 can't use right now and why. If one you enabled is missing,
+say so; it may be switched off in this project's settings even though it's on in
+Providers.
+
 Say which accounts are approved, which assistant you prefer and what you want to make. Ask
 for the available approved models rather than guessing. If no compatible gateway adapter
 exists, the assistant must say so; you can continue with Codex or Claude and keep the
