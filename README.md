@@ -5,13 +5,23 @@ code reviewer, and a separate adversary auditing instructions, agent claims, mis
 or contradictory evidence, and observed guardrail behavior. One approved provider
 can fill all roles in fresh sessions. No herdr or local model is required.
 
-## T3 crew — public preview
+## T3 crew — public preview (0.2.0)
 
-Start with [the installer and onboarding guide](t3/QUICKSTART.md). The initial interview
+Start with [the installer and onboarding guide](t3/QUICKSTART.md). First-time users,
+including people who have never used a terminal, can follow the step-by-step
+[setup guide](t3/SETUP-GUIDE.md) for Windows and Mac. Changes are listed in
+[the changelog](t3/CHANGELOG.md). The initial interview
 covers Claude, ChatGPT/Codex, Gemini, LiteLLM and Cursor; resources stay unbound until
 mapped to approved available T3 instances. The portable project starter preserves
 existing rules and adds real-check configuration, evidence recording and independent
 review contracts. Verification starts unconfigured rather than falsely green.
+
+**Exposed credentials stop the work.** If a password, API key, token or private key
+appears in chat, a file, tool output or evidence, every agent stops, never repeats it,
+and walks the user through revoking and replacing it. Work resumes only when the rotation
+is evidenced. The project CLI enforces this: while an incident is open it refuses to start
+tasks, run checks or build review packets, and it never sends a packet that looks like it
+contains a credential. See [exposed credentials](t3/skills/paddock-crew/references/secrets.md).
 
 [Shareable T3 workflow](t3/workflow.png) · [Editable vector](t3/workflow.svg)
 
@@ -23,10 +33,10 @@ bindings, account files, credentials and run evidence are excluded. See
 [the notice](t3/NOTICE.txt).
 
 The preview's local records are editable, not authenticated attestations. A complete
-audit record is not proof of model honesty or runtime enforcement. The committed
-baseline passed macOS, Linux and native Windows CI; see the exact run and remaining
-real T3 integration limits in [the validation record](t3/VALIDATION.md).
-No release is published automatically.
+audit record is not proof of model honesty or runtime enforcement. `main` is protected:
+changes arrive through pull requests that pass macOS, Linux and native Windows CI. See
+the exact run and the remaining real T3 integration limits in
+[the validation record](t3/VALIDATION.md). No release is published automatically.
 
 ## Legacy herdr crew and optional multi-account guards
 

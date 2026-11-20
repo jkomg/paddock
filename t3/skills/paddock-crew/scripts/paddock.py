@@ -14,7 +14,7 @@ import sys
 import time
 import uuid
 
-VERSION = "0.1.0-preview"
+VERSION = "0.2.0-preview"
 ROLES = ("coordinator", "builder", "reviewer", "adversary")
 PROVIDERS = ("claude", "codex", "gemini", "litellm", "cursor")
 MARKER = "<!-- paddock-crew -->"
